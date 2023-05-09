@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, List
 import numpy as np
 from PIL import Image
 from torch import from_numpy
@@ -13,13 +13,29 @@ class IDDADataset(VisionDataset):
 
     def __init__(self,
                  root: str,
-                 list_samples: [str],
+                 list_samples: List[str],
                  transform: tr.Compose = None,
                  client_name: str = None):
         super().__init__(root=root, transform=transform, target_transform=None)
         self.list_samples = list_samples
         self.client_name = client_name
         self.target_transform = self.get_mapping()
+
+        self.images = []
+        self.labels = []
+
+        image_path = os.path.join(root, 'images')
+        label_path = os.path.join(root, 'labels')
+
+        for sample in self.list_samples:
+            #image_name, _ = sample.split(".")
+            sample = sample.strip()
+            image = Image.open(os.path.join(image_path, f"{sample}.jpg"), 'r')
+            label = Image.open(os.path.join(label_path, f"{sample}.png"), 'r')
+            self.images.append(image)
+            self.labels.append(label)
+            #self.labels.append(np.asarray(label, dtype=np.int32))
+
 
     @staticmethod
     def get_mapping():
@@ -30,8 +46,14 @@ class IDDADataset(VisionDataset):
         return lambda x: from_numpy(mapping[x])
 
     def __getitem__(self, index: int) -> Any:
-        # TODO: missing code here!
-        raise NotImplementedError
+        image = self.images[index]
+        label = self.labels[index]
+
+        if self.transform is not None:
+            image, label = self.transform(image, label)
+
+        label = self.target_transform(label)
+        return image, label
 
     def __len__(self) -> int:
         return len(self.list_samples)

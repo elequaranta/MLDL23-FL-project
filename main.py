@@ -7,6 +7,7 @@ import random
 
 import numpy as np
 from torchvision.models import resnet18
+import wandb
 
 import datasets.ss_transforms as sstr
 import datasets.np_transforms as nptr
@@ -15,9 +16,11 @@ from torch import nn
 from client import Client
 from datasets.femnist import Femnist
 from server import Server
+from centralized_model import CentralizedModel
 from utils.args import get_parser
 from datasets.idda import IDDADataset
 from models.deeplabv3 import deeplabv3_mobilenetv2
+from utils.init_fs import Serializer
 from utils.stream_metrics import StreamSegMetrics, StreamClsMetrics
 
 
@@ -96,17 +99,24 @@ def read_femnist_data(train_data_dir, test_data_dir):
 
 
 def get_datasets(args):
-
     train_datasets = []
     train_transforms, test_transforms = get_transforms(args)
 
     if args.dataset == 'idda':
         root = 'data/idda'
-        with open(os.path.join(root, 'train.json'), 'r') as f:
-            all_data = json.load(f)
-        for client_id in all_data.keys():
-            train_datasets.append(IDDADataset(root=root, list_samples=all_data[client_id], transform=train_transforms,
-                                              client_name=client_id))
+        
+        if args.centralized == True:
+            with open(os.path.join(root, 'train.txt'), 'r') as f:
+                all_data = f.readlines()
+                train_datasets.append(IDDADataset(root=root, list_samples=all_data, transform=train_transforms,
+                                                client_name=None))
+        elif args.centralized == 'false':
+            with open(os.path.join(root, 'train.json'), 'r') as f:
+                all_data = json.load(f)
+            for client_id in all_data.keys():
+                train_datasets.append(IDDADataset(root=root, list_samples=all_data[client_id], transform=train_transforms,
+                                                client_name=client_id))
+        
         with open(os.path.join(root, 'test_same_dom.txt'), 'r') as f:
             test_same_dom_data = f.read().splitlines()
             test_same_dom_dataset = IDDADataset(root=root, list_samples=test_same_dom_data, transform=test_transforms,
@@ -115,7 +125,8 @@ def get_datasets(args):
             test_diff_dom_data = f.read().splitlines()
             test_diff_dom_dataset = IDDADataset(root=root, list_samples=test_diff_dom_data, transform=test_transforms,
                                                 client_name='test_diff_dom')
-        test_datasets = [test_same_dom_dataset, test_diff_dom_dataset]
+        test_datasets = {"same_dom": test_same_dom_dataset, 
+                         "diff_dom": test_diff_dom_dataset}
 
     elif args.dataset == 'femnist':
         niid = args.niid
@@ -136,7 +147,6 @@ def get_datasets(args):
         raise NotImplementedError
 
     return train_datasets, test_datasets
-
 
 def set_metrics(args):
     num_classes = get_dataset_num_classes(args.dataset)
@@ -164,14 +174,37 @@ def gen_clients(args, train_datasets, test_datasets, model):
     return clients[0], clients[1]
 
 
-def main():
+def federeted_main():
+    args, train_datasets, test_datasets, model, metrics = _common_main()
+
+    train_clients, test_clients = gen_clients(args, train_datasets, test_datasets, model)
+    server = Server(args, train_clients, test_clients, model, metrics)
+    server.train()
+
+def centralized_main():
+    args, train_datasets, test_datasets, model, metrics, serializer = _common_main()
+    centralized_model = CentralizedModel(args, train_datasets[0], test_datasets, model, serializer)
+    centralized_model.train()
+    centralized_model.test(metrics["eval_train"], "train")
+    centralized_model.test(metrics["test_same_dom"], "same_dom")
+    centralized_model.test(metrics["test_diff_dom"], "diff_dom")
+
+def _common_main():
     parser = get_parser()
     args = parser.parse_args()
     set_seed(args.seed)
 
+    wandb.init(
+      # Set the project where this run will be logged
+      project="basic-intro", 
+      # We pass a run name (otherwise it’ll be randomly assigned, like sunshine-lollypop-10)
+      name=args.exp_name, 
+      # Track hyperparameters and run metadata
+      config=vars(args))
+
     print(f'Initializing model...')
     model = model_init(args)
-    model.cuda()
+    #model.cuda()
     print('Done.')
 
     print('Generate datasets...')
@@ -179,10 +212,13 @@ def main():
     print('Done.')
 
     metrics = set_metrics(args)
-    train_clients, test_clients = gen_clients(args, train_datasets, test_datasets, model)
-    server = Server(args, train_clients, test_clients, model, metrics)
-    server.train()
 
+    serializer = Serializer(args.exp_name)
+
+    serializer.save_params(vars(args))
+
+    return args, train_datasets, test_datasets, model, metrics, serializer
 
 if __name__ == '__main__':
-    main()
+    centralized_main()
+    wandb.finish()

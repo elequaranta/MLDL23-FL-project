@@ -32,7 +32,10 @@ def deeplabv3_mobilenetv2(
     model_urls = {
         0.5: 'https://github.com/d-li14/mobilenetv2.pytorch/raw/master/pretrained/mobilenetv2_0.5-eaa6f9ad.pth',
         1.: 'https://github.com/d-li14/mobilenetv2.pytorch/raw/master/pretrained/mobilenetv2_1.0-0c6065bc.pth'}
-    state_dict = load_state_dict_from_url(model_urls[width_mult], progress=True)
+    if torch.cuda.is_available():
+        state_dict = load_state_dict_from_url(model_urls[width_mult], progress=True)
+    else:
+        state_dict = load_state_dict_from_url(model_urls[width_mult], progress=True, map_location=torch.device('cpu'))
     state_dict_updated = state_dict.copy()
     for k, v in state_dict.items():
         if 'features' not in k and 'classifier' not in k:
