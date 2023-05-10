@@ -103,8 +103,10 @@ def get_datasets(args):
     train_transforms, test_transforms = get_transforms(args)
 
     if args.dataset == 'idda':
-        root = 'data/idda'
-        
+        if args.env == 'colab':
+            root = 'drive/MyDrive/project 2B/idda/idda'
+        else:
+            root = 'data/idda'
         if args.centralized == True:
             with open(os.path.join(root, 'train.txt'), 'r') as f:
                 all_data = f.readlines()

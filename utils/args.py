@@ -2,10 +2,12 @@ import argparse
 
 OPTIMIZER = ['SGD', 'Adam']
 POLICIES = ['poly', 'step', 'None']
+ENV = ['colab', 'other']
 
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--exp_name', type=str, required=True, help='name of the experiment running')
+    parser.add_argument('--env', type=str, required=True, choices=ENV, help='enviroment of execution')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--dataset', type=str, choices=['idda', 'femnist'], required=True, help='dataset name')
     parser.add_argument('--centralized', type=bool, default=False, required=True, help='choose between centralized training or federeted training')
