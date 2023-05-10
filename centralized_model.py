@@ -140,10 +140,10 @@ class CentralizedModel:
             for i, (images, labels) in enumerate(loader):
                 images = images.to(self.device, dtype=torch.float32)
                 labels = labels.to(self.device, dtype=torch.long)
-                outputs = self.model(images, test=True, use_test_resize=self.args.use_test_resize)
+                outputs = self.model(images)
                 self.update_metric(metric, outputs, labels)
             results = metric.get_results()
             results["dataset"] = dataset_type
             wandb.log({"validation": results})
-            wandb.summary['mIoU'] = results["Mean IoU"]
+            wandb.summary[dataset_type + 'mIoU'] = results["Mean IoU"]
             self.serializer.save_results(results)
