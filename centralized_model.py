@@ -77,6 +77,7 @@ class CentralizedModel:
         :param cur_epoch: current epoch of training
         :param optimizer: optimizer used for the local training
         """
+        example_ct = 0
         for cur_step, (images, labels) in enumerate(self.train_loader):
 
             images = images.to(self.device, dtype=torch.float32)
