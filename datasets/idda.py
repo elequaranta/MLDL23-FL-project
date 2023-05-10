@@ -21,21 +21,9 @@ class IDDADataset(VisionDataset):
         self.client_name = client_name
         self.target_transform = self.get_mapping()
 
-        self.images = []
-        self.labels = []
-
-        image_path = os.path.join(root, 'images')
-        label_path = os.path.join(root, 'labels')
-
-        for sample in self.list_samples:
-            #image_name, _ = sample.split(".")
-            sample = sample.strip()
-            image = Image.open(os.path.join(image_path, f"{sample}.jpg"), 'r')
-            label = Image.open(os.path.join(label_path, f"{sample}.png"), 'r')
-            self.images.append(image)
-            self.labels.append(label)
-            #self.labels.append(np.asarray(label, dtype=np.int32))
-
+        self.image_path = os.path.join(root, 'images')
+        self.label_path = os.path.join(root, 'labels')
+        
 
     @staticmethod
     def get_mapping():
@@ -46,8 +34,9 @@ class IDDADataset(VisionDataset):
         return lambda x: from_numpy(mapping[x])
 
     def __getitem__(self, index: int) -> Any:
-        image = self.images[index]
-        label = self.labels[index]
+        sample = self.list_samples[index].strip()
+        image = Image.open(os.path.join(self.image_path, f"{sample}.jpg"), 'r')
+        label = Image.open(os.path.join(self.label_path, f"{sample}.png"), 'r')
 
         if self.transform is not None:
             image, label = self.transform(image, label)

@@ -31,6 +31,7 @@ class CentralizedModel:
         self.serializer = serializer
 
         self.train_loader = DataLoader(train_dataset, batch_size=self.args.bs, shuffle=True, drop_last=True)
+        self.test_train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
         self.test_same_dom_loader = DataLoader(test_datasets["same_dom"], batch_size=1, shuffle=False)
         self.test_diff_dom_loader = DataLoader(test_datasets["diff_dom"], batch_size=1, shuffle=False)
 
@@ -128,7 +129,7 @@ class CentralizedModel:
         self.model.eval()
 
         if dataset_type == "train":
-            loader = self.train_loader
+            loader = self.test_train_loader
         elif dataset_type == "same_dom":
             loader = self.test_same_dom_loader
         elif dataset_type == "diff_dom":
@@ -141,7 +142,7 @@ class CentralizedModel:
                 images = images.to(self.device, dtype=torch.float32)
                 labels = labels.to(self.device, dtype=torch.long)
                 outputs = self.model(images)
-                self.update_metric(metric, outputs, labels)
+                self.update_metric(metric, outputs["out"], labels)
             results = metric.get_results()
             results["dataset"] = dataset_type
             wandb.log({"validation": results})

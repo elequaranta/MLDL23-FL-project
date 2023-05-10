@@ -4,3 +4,5 @@ __pycache__
 mldl23fl_copy.yml
 mldl23fl.yml
 .DS_Store
+wandb
+models_saved

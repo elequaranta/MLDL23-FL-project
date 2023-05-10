@@ -1,6 +1,8 @@
+from argparse import Namespace
 import os
 import json
 from collections import defaultdict
+from typing import Any, Dict, List, Tuple
 
 import torch
 import random
@@ -19,6 +21,7 @@ from server import Server
 from centralized_model import CentralizedModel
 from utils.args import get_parser
 from datasets.idda import IDDADataset
+from torchvision.datasets import VisionDataset
 from models.deeplabv3 import deeplabv3_mobilenetv2
 from utils.init_fs import Serializer
 from utils.stream_metrics import StreamSegMetrics, StreamClsMetrics
@@ -190,8 +193,10 @@ def centralized_main():
     centralized_model.test(metrics["eval_train"], "train")
     centralized_model.test(metrics["test_same_dom"], "same_dom")
     centralized_model.test(metrics["test_diff_dom"], "diff_dom")
+    for key, metric in metrics.items():
+        print(f"Test on dataset: {key} => {metric}")
 
-def _common_main():
+def _common_main() -> Tuple[Namespace, List[VisionDataset], Dict[str, VisionDataset], Any, Dict[str, StreamSegMetrics], Serializer]:
     parser = get_parser()
     args = parser.parse_args()
     set_seed(args.seed)
@@ -206,7 +211,6 @@ def _common_main():
 
     print(f'Initializing model...')
     model = model_init(args)
-    #model.cuda()
     print('Done.')
 
     print('Generate datasets...')
