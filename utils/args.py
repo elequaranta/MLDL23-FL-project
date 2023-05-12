@@ -28,10 +28,28 @@ def get_parser():
     parser.add_argument('--test_interval', type=int, default=10, help='test interval')
     parser.add_argument('--optimizer', type=str, default='SGD', choices=OPTIMIZER, help='optimizer type')
     
+
     # Scheduler
     parser.add_argument('--lr_policy', type=str, default='poly', choices=POLICIES, help='lr schedule policy')
     parser.add_argument('--lr_power', type=float, default=0.9, help='power for polyLR')
     parser.add_argument('--lr_decay_step', type=int, default=5000, help='decay step for stepLR')
     parser.add_argument('--lr_decay_factor', type=float, default=0.1, help='decay factor for stepLR')
+
+    # Transformer option
+    parser.add_argument('--min_scale', type=float, default=0.25, help='define the lowest value for scale')
+    parser.add_argument('--max_scale', type=float, default=2.0, help='define the highest value for scale')
+    parser.add_argument('--h_resize', type=int, default=512, help='define the resize value for image H ')
+    parser.add_argument('--w_resize', type=int, default=1024, help='define the resize value for image W ')
+    parser.add_argument('--use_test_resize', action='store_true', default=False, help='whether to use test resize')
+    parser.add_argument('--jitter', action='store_true', default=False, help='whether to use color jitter')
+    parser.add_argument('--cv2_transform', action='store_true', default=False, help='whether to use cv2_transforms')
+    parser.add_argument('--rrc_transform', action='store_true', default=False,
+                        help='whether to use random resized crop')
+    parser.add_argument('--rsrc_transform', action='store_true', default=False,
+                        help='whether to use random scale random crop')
+    parser.add_argument('--cts_norm', action='store_true', default=False,
+                        help='whether to use cts normalization otherwise 0.5 for mean and std')
+    parser.add_argument('--eros_norm', action='store_true', default=True,
+                        help='whether to use eros normalization otherwise 0.5 for mean and std')
     
     return parser

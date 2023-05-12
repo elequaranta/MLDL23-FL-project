@@ -15,10 +15,12 @@ class IDDADataset(VisionDataset):
                  root: str,
                  list_samples: List[str],
                  transform: tr.Compose = None,
+                 test_mode: bool = False,
                  client_name: str = None):
         super().__init__(root=root, transform=transform, target_transform=None)
         self.list_samples = list_samples
         self.client_name = client_name
+        self.test_mode = test_mode
         self.target_transform = self.get_mapping()
 
         self.image_path = os.path.join(root, 'images')
@@ -39,9 +41,14 @@ class IDDADataset(VisionDataset):
         label = Image.open(os.path.join(self.label_path, f"{sample}.png"), 'r')
 
         if self.transform is not None:
-            image, label = self.transform(image, label)
+            if not self.test_mode:
+                image, label = self.transform(image, label)
+            else:
+                image = self.transform(image)
 
-        label = self.target_transform(label)
+        if self.target_transform is not None:
+            label = self.target_transform(label)
+        
         return image, label
 
     def __len__(self) -> int:

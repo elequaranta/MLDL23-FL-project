@@ -144,7 +144,6 @@ class CentralizedModel:
                 outputs = self.model(images)
                 self.update_metric(metric, outputs["out"], labels)
             results = metric.get_results()
-            results["dataset"] = dataset_type
             wandb.log({"validation": results})
             wandb.summary[dataset_type + 'mIoU'] = results["Mean IoU"]
             self.serializer.save_results(results)
