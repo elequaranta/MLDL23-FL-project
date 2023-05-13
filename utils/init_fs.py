@@ -8,8 +8,11 @@ class Serializer:
 
     experiment_result_dir = Path("models_saved/")
 
-    def __init__(self, experiment_name: str) -> None:
+    def __init__(self, experiment_name: str, disableb: bool) -> None:
 
+        self.disabled = disableb
+        if disableb:
+            return
         # Create if not already present common folders
         if not Serializer.experiment_result_dir.exists():
             Serializer.experiment_result_dir.mkdir()
@@ -23,13 +26,19 @@ class Serializer:
             raise Exception("The name chosen for the experiment directory is already used by another experiment")
 
     def save_model(self, model: _SimpleSegmentationModel) -> None:
-        model_path = self._create_model_path()
+        if self.disabled:
+            return
+        model_path = self._get_model_path()
         torch.save(model.state_dict(), model_path)
 
     def save_params(self, params: dict) -> None:
+        if self.disabled:
+            return
         self._save_json("params", params)
         
     def save_results(self, params: dict) -> None:
+        if self.disabled:
+            return
         self._save_json("results", params)
 
     def _save_json(self, file_name: str, params: dict) -> None:
@@ -37,7 +46,7 @@ class Serializer:
         with open(file_path, "a") as outfile:
             json.dump(params, outfile)
 
-    def _create_model_path(self) -> Path:
+    def _get_model_path(self) -> Path:
         return self.exp_dir_path.joinpath(f"model.torch")
 
     @staticmethod

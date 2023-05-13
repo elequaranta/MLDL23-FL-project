@@ -1,3 +1,4 @@
+from argparse import Namespace
 import copy
 import math
 from typing import Dict, List
@@ -9,6 +10,7 @@ from collections import defaultdict
 from torchvision.models.segmentation.deeplabv3 import DeepLabV3
 from torch.utils.data import DataLoader
 from torchvision.datasets import VisionDataset
+from tqdm import tqdm
 import wandb
 from utils.init_fs import Serializer
 from utils.stream_metrics import StreamSegMetrics
@@ -19,11 +21,21 @@ from utils.utils import HardNegativeMining, MeanReduction, get_scheduler
 class CentralizedModel:
 
     def __init__(self, 
-                 args, 
+                 args: Namespace, 
                  train_dataset: VisionDataset, 
                  test_datasets: Dict[str,VisionDataset], 
                  model: DeepLabV3,
                  serializer: Serializer):
+        """Constructor for the centralized model
+
+        Args:
+            args (Namespace): configuration of the current run
+            train_dataset (VisionDataset): dataset used for training
+            test_datasets (Dict[str,VisionDataset]): dataset used for test
+            model (DeepLabV3): model to train/test
+            serializer (Serializer): serializer to save params/results/model on the filesystem
+                                     of execution
+        """
         self.args = args
         self.model = model
         self.train_dataset = train_dataset
@@ -65,21 +77,26 @@ class CentralizedModel:
         if self.args.optimizer == 'SGD':
             optimizer = optim.SGD(params, lr=self.args.lr, momentum=self.args.momentum,
                                   weight_decay=self.args.weight_decay, nesterov=True)
-        else:
+        elif self.args.optimizer == "Adam":
             optimizer = optim.Adam(params, lr=self.args.lr, weight_decay=self.args.weight_decay)
+        else:
+            raise NotImplementedError("Select a type of optimizer already implemented")
         
         scheduler = get_scheduler(self.args, optimizer,
                                   max_iter=10000 * self.args.num_epochs * len(self.train_loader))
         return optimizer, scheduler
 
-    def run_epoch(self, cur_epoch: int, optimizer: optim.Optimizer, n_steps_per_epoch: int, scheduler: _LRScheduler = None):
-        """
-        This method locally trains the model with the dataset of the client. It handles the training at mini-batch level
-        :param cur_epoch: current epoch of training
-        :param optimizer: optimizer used for the local training
+    def run_epoch(self, cur_epoch: int, optimizer: optim.Optimizer, scheduler: _LRScheduler = None):
+        """Train the model using mini-batch of training data
+
+        Args:
+            cur_epoch (int): current epoch
+            optimizer (optim.Optimizer): optimizer used in the back propagation
+            scheduler (_LRScheduler, optional): scheduler used in the back propagation. Defaults to None.
         """
         example_ct = 0
-        for cur_step, (images, labels) in enumerate(self.train_loader):
+        batch_ct = 0
+        for _, (images, labels) in enumerate(self.train_loader):
 
             images = images.to(self.device, dtype=torch.float32)
             labels = labels.to(self.device, dtype=torch.long)
@@ -95,35 +112,44 @@ class CentralizedModel:
                 scheduler.step()
 
             example_ct += len(images)
-            wandb_metrics = {"train/train_loss": loss, 
-                       "train/epoch": (cur_step + 1 + (n_steps_per_epoch * cur_epoch)) / n_steps_per_epoch, 
-                       "train/example_ct": example_ct}
-            
-        wandb.log(wandb_metrics)
+            batch_ct += 1
+
+            # Log loss every 5 batch
+            if ((batch_ct + 1) % 5 == 0):
+                wandb.log({"epoch": cur_epoch, "loss": loss}, step=example_ct)
 
     def train(self) -> int:
-        """
-        This method locally trains the model with the idda dataset. It handles the training at epochs level
+        """This method locally trains the model with the idda dataset. It handles the training at epochs level
         (by calling the run_epoch method for each local epoch of training)
-        :return: length of the dataset used in training, copy of the model parameters
+        
+        Returns:
+            int: length of the dataset used in training
         """
         tot_num_samples = len(self.train_dataset)
         optimizer, scheduler = self._configure_optimizer()
         self.model.to(self.device)
         self.model.train()
-        n_steps_per_epoch = math.ceil(len(self.train_loader.dataset) / self.train_loader.batch_size)
-        
-        for epoch in range(self.args.num_epochs):
-            print(f"Current epoch: {epoch}")
-            self.run_epoch(cur_epoch=epoch, optimizer=optimizer, n_steps_per_epoch=n_steps_per_epoch)
+        wandb.watch(self.model, self.criterion, log="all", log_freq=10)
+        for epoch in tqdm(range(self.args.num_epochs)):
+            self.run_epoch(cur_epoch=epoch, optimizer=optimizer)
 
         self.serializer.save_model(model=self.model)
+        if not self.args.not_use_wandb:
+            model_run_name = self.args.exp_name + "_" + wandb.run.id
+            artifact = wandb.Artifact(model_run_name, type='model')
+            artifact.add_file(self.serializer._get_model_path())
+            wandb.log_artifact(artifact)
         return tot_num_samples
 
     def test(self, metric: StreamSegMetrics, dataset_type: str):
-        """
-        This method tests the model on the local dataset of the client.
-        :param metric: StreamMetric object
+        """Test the model on the dataset required
+
+        Args:
+            metric (StreamSegMetrics): metric where to save the results
+            dataset_type (str): type of dataset to used in test (train, same_dom, diff_dom)
+
+        Raises:
+            NotImplementedError: raised if the dataset_type has not been implemented yet
         """
         self.model.to(self.device)
         self.model.eval()
@@ -144,6 +170,6 @@ class CentralizedModel:
                 outputs = self.model(images)
                 self.update_metric(metric, outputs["out"], labels)
             results = metric.get_results()
-            wandb.log({"validation": results})
-            wandb.summary[dataset_type + 'mIoU'] = results["Mean IoU"]
+            wandb.summary[dataset_type + " mIoU"] = results["Mean IoU"]
+            wandb.save(self.serializer.exp_dir_path.joinpath("results.json"))
             self.serializer.save_results(results)
