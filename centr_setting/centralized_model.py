@@ -171,5 +171,5 @@ class CentralizedModel:
                 self.update_metric(metric, outputs["out"], labels)
             results = metric.get_results()
             wandb.summary[dataset_type + " mIoU"] = results["Mean IoU"]
-            wandb.save(self.serializer.exp_dir_path.joinpath("results.json"))
+            wandb.save(self.serializer.exp_dir_path.joinpath("results.json").as_posix())
             self.serializer.save_results(results)
