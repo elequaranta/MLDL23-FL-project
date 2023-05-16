@@ -85,7 +85,7 @@ def init_env():
     if args.framework == 'federated':
         main_module = 'fed_setting.main'
         main = getattr(importlib.import_module(main_module), 'main')
-        main(args, train_datasets, test_datasets, model, metrics, serializer)
+        main(args, train_datasets, test_datasets.values(), model, metrics, serializer)
     elif args.framework == 'centralized':
         main_module = 'centr_setting.main'
         main = getattr(importlib.import_module(main_module), 'main')

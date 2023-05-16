@@ -1,5 +1,5 @@
 from argparse import Namespace
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 import wandb
 from torchvision.datasets import VisionDataset
 
@@ -10,7 +10,11 @@ from client import Client
 from server import Server
 
 
-def gen_clients(args, train_datasets, test_datasets, model):
+def gen_clients(
+        args: Namespace, 
+        train_datasets: List[VisionDataset], 
+        test_datasets:List[VisionDataset], model) \
+            -> Tuple[List[Client], List[Client]]:
     clients = [[], []]
     for i, datasets in enumerate([train_datasets, test_datasets]):
         for ds in datasets:
@@ -20,7 +24,7 @@ def gen_clients(args, train_datasets, test_datasets, model):
 def main(
         args: Namespace, 
         train_datasets: List[VisionDataset], 
-        test_datasets: Dict[str, VisionDataset], 
+        test_datasets: List[VisionDataset], 
         model: Any, 
         metrics: Dict[str, StreamSegMetrics], 
         serializer: Serializer):
