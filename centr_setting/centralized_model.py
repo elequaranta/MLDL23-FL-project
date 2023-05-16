@@ -49,8 +49,8 @@ class CentralizedModel:
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
-        #self.criterion = nn.CrossEntropyLoss(ignore_index=255, reduction='none')
-        self.criterion = nn.CrossEntropyLoss(ignore_index=255, reduction='mean')
+        self.criterion = nn.CrossEntropyLoss(ignore_index=255, reduction='none')
+        #self.criterion = nn.CrossEntropyLoss(ignore_index=255, reduction='mean')
         # TODO understand what is this....
         self.reduction = HardNegativeMining() if self.args.hnm else MeanReduction()
 
@@ -104,7 +104,7 @@ class CentralizedModel:
             optimizer.zero_grad()
 
             outputs = self.model(images)
-            loss = self.criterion(outputs['out'], labels)
+            loss = self.reduction(self.criterion(outputs['out'], labels), labels)
             loss.backward()
             optimizer.step()
 
@@ -131,7 +131,7 @@ class CentralizedModel:
         self.model.train()
         wandb.watch(self.model, self.criterion, log="all", log_freq=10)
         for epoch in tqdm(range(self.args.num_epochs)):
-            self.run_epoch(cur_epoch=epoch, optimizer=optimizer)
+            self.run_epoch(cur_epoch=epoch, optimizer=optimizer, scheduler=scheduler)
 
         self.serializer.save_model(model=self.model)
         if not self.args.not_use_wandb:
