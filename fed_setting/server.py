@@ -4,6 +4,7 @@ from collections import OrderedDict
 from typing import Dict, List, Tuple
 
 import numpy as np
+import numpy.typing as npt
 import torch
 import itertools
 
@@ -33,11 +34,12 @@ class Server:
             "test_same_dom": AggregatedFederatedMetrics("test_same_dom"),
             "test_diff_dom": AggregatedFederatedMetrics("test_diff_dom"),
         }
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
         self.model_params_dict = copy.deepcopy(self.model.state_dict())
         self.optimizer = self._configure_optimizer()
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    def select_clients(self) -> Client | np.ndarray[Client]:
+    def select_clients(self) -> Client | npt.ArrayLike[Client]:
         """Select a random subset of clients from the pool
 
         Returns:
@@ -46,7 +48,7 @@ class Server:
         num_clients = min(self.args.clients_per_round, len(self.train_clients))
         return np.random.choice(self.train_clients, num_clients, replace=False)
 
-    def train_round(self, clients: np.ndarray[Client]) -> Tuple[List[Tuple[int, OrderedDict]], Dict[str, Dict[torch.Tensor, int]]]:
+    def train_round(self, clients: npt.ArrayLike[Client]) -> Tuple[List[Tuple[int, OrderedDict]], Dict[str, Dict[torch.Tensor, int]]]:
         """This method trains the model with the dataset of the clients. It handles the training at single round level
 
         Args:
