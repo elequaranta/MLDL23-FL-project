@@ -83,7 +83,7 @@ class CentralizedModel:
             raise NotImplementedError("Select a type of optimizer already implemented")
         
         scheduler = get_scheduler(self.args, optimizer,
-                                  max_iter=10000 * self.args.num_epochs * len(self.train_loader))
+                                  max_iter=self.args.num_epochs * len(self.train_loader))
         return optimizer, scheduler
 
     def run_epoch(self, cur_epoch: int, optimizer: optim.Optimizer, scheduler: _LRScheduler = None):
@@ -115,7 +115,7 @@ class CentralizedModel:
             batch_ct += 1
 
             # Log loss every 5 batch
-            if ((batch_ct + 1) % 5 == 0):
+            if ((batch_ct) % 5 == 0):
                 wandb.log({"epoch": cur_epoch, "loss": loss}, step=example_ct)
 
     def train(self) -> int:
@@ -131,7 +131,7 @@ class CentralizedModel:
         self.model.train()
         wandb.watch(self.model, self.criterion, log="all", log_freq=10)
         for epoch in tqdm(range(self.args.num_epochs)):
-            self.run_epoch(cur_epoch=epoch, optimizer=optimizer, scheduler=scheduler)
+            self.run_epoch(cur_epoch=epoch+1, optimizer=optimizer, scheduler=scheduler)
 
         self.serializer.save_model(model=self.model)
         if not self.args.not_use_wandb:

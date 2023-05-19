@@ -49,7 +49,7 @@ def get_parser():
     scheduler_args = parser.add_argument_group("Options for scheduling")
     scheduler_args.add_argument('--lr_policy', type=str, default='poly', choices=POLICIES, help='lr schedule policy')
     scheduler_args.add_argument('--lr_power', type=float, default=0.9, help='power for polyLR')
-    scheduler_args.add_argument('--lr_decay_step', type=int, default=5000, help='decay step for stepLR')
+    scheduler_args.add_argument('--lr_decay_step', type=int, default=15, help='decay step for stepLR')
     scheduler_args.add_argument('--lr_decay_factor', type=float, default=0.1, help='decay factor for stepLR')
 
     # Transformer options

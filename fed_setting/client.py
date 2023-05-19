@@ -71,16 +71,17 @@ class Client:
     def run_epoch(self, 
                   cur_epoch: int, 
                   optimizer: optim.Optimizer, 
-                  scheduler: _LRScheduler = None) -> None:
+                  scheduler: _LRScheduler = None) -> torch.Tensor:
         """This method locally trains the model with the dataset of the client. 
             It handles the training at mini-batch level.
         Args:
             cur_epoch (int): current epoch of training
             optimizer (optim.Optimizer): optimizer used for the local training
             scheduler (_LRScheduler, optional): scheduler used for the local training. Defaults to None.
+        Returns:
+            Tensor: loss of the epoch
         """
         example_ct = 0
-
         for cur_step, (images, labels) in enumerate(self.train_loader):
 
             images = images.to(self.device, dtype=torch.float32)
@@ -99,26 +100,27 @@ class Client:
             example_ct += len(images)
 
             # Log loss every 5 batch
-            if ((cur_step + 1) % 5 == 0):
-                wandb.log({"epoch": cur_epoch, "loss": loss}, step=example_ct)
+            #if ((cur_step + 1) % 5 == 0):
+            #    wandb.log({"epoch": cur_epoch, f"{self.name}-loss": loss}, step=example_ct)
+        return loss
 
-    def train(self) -> Tuple[int, OrderedDict]:
+    def train(self) -> Tuple[int, OrderedDict, torch.Tensor]:
         """This method locally trains the model with the dataset of the client. It handles the training at epochs level
         (by calling the run_epoch method for each local epoch of training)
         
         Returns:
-            Tuple[int, OrderedDict]: length of the local dataset, copy of the model parameters
+            Tuple[int, OrderedDict, Tensor]: length of the local dataset, copy of the model parameters and loss of the training
         """
         num_train_samples = len(self.dataset)
         optimizer, scheduler = self._configure_optimizer()
         self.model.to(self.device)
         self.model.train()
         wandb.watch(self.model, self.criterion, log="all", log_freq=10)
-        for epoch in tqdm(range(self.args.num_epochs)):
-            self.run_epoch(epoch, optimizer=optimizer, scheduler=scheduler)
+        for epoch in tqdm(range(self.args.num_epochs), desc=self.name):
+            loss = self.run_epoch(epoch, optimizer=optimizer, scheduler=scheduler)
         
         state_dict = copy.deepcopy(self.model.state_dict())
-        return num_train_samples, state_dict
+        return num_train_samples, state_dict, loss
 
     def test(self, metric: StreamSegMetrics):
         """

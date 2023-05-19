@@ -58,43 +58,46 @@ def set_metrics(args):
     return metrics    
 
 def init_env():
-    parser = get_parser()
-    args = parser.parse_args()
-    set_seed(args.seed)
+    try:
+        parser = get_parser()
+        args = parser.parse_args()
+        set_seed(args.seed)
 
-    if not args.not_use_wandb:
-        wandb.init(
-            project="centralized-training", 
-            name=args.exp_name, 
-            config=vars(args))
+        if not args.not_use_wandb:
+            wandb.init(
+                project="centralized-training", 
+                name=args.exp_name, 
+                config=vars(args))
 
-    start = time.time()
+        start = time.time()
 
-    print(f'Initializing model...')
-    model = model_init(args)
-    print('Done.')
+        print(f'Initializing model...')
+        model = model_init(args)
+        print('Done.')
 
-    print('Generate datasets...')
-    train_datasets, test_datasets = get_datasets(args)
-    print('Done.')
+        print('Generate datasets...')
+        train_datasets, test_datasets = get_datasets(args)
+        print('Done.')
 
-    metrics = set_metrics(args)
-    serializer = Serializer(args.exp_name, args.not_use_serializer)
-    serializer.save_params(vars(args))
+        metrics = set_metrics(args)
+        serializer = Serializer(args.exp_name, args.not_use_serializer)
+        serializer.save_params(vars(args))
 
-    if args.framework == 'federated':
-        main_module = 'fed_setting.main'
-        main = getattr(importlib.import_module(main_module), 'main')
-        main(args, train_datasets, test_datasets.values(), model, metrics, serializer)
-    elif args.framework == 'centralized':
-        main_module = 'centr_setting.main'
-        main = getattr(importlib.import_module(main_module), 'main')
-        main(args, train_datasets, test_datasets, model, metrics, serializer)
-    else:
-        raise NotImplementedError
+        if args.framework == 'federated':
+            main_module = 'fed_setting.main'
+            main = getattr(importlib.import_module(main_module), 'main')
+            main(args, train_datasets, test_datasets.values(), model, metrics, serializer)
+        elif args.framework == 'centralized':
+            main_module = 'centr_setting.main'
+            main = getattr(importlib.import_module(main_module), 'main')
+            main(args, train_datasets, test_datasets, model, metrics, serializer)
+        else:
+            raise NotImplementedError
 
-    end = time.time()
-    print(f"Elapsed time: {round(end - start, 2)}")
+        end = time.time()
+        print(f"Elapsed time: {round(end - start, 2)}")
+    finally:
+        torch.cuda.empty_cache()
 
 if __name__ == "__main__":
     init_env()

@@ -4,10 +4,11 @@ import wandb
 from torchvision.datasets import VisionDataset
 
 from centr_setting.centralized_model import CentralizedModel
+from fed_setting.client import Client
+from fed_setting.server import Server
 from utils.init_fs import Serializer
 from utils.stream_metrics import StreamSegMetrics
-from client import Client
-from server import Server
+
 
 
 def gen_clients(
@@ -32,6 +33,8 @@ def main(
     train_clients, test_clients = gen_clients(args, train_datasets, test_datasets, model)
     server = Server(args, train_clients, test_clients, model, metrics)
     server.train()
+    server.eval_train()
+    server.test()
 
 if __name__ == '__main__':
     main()

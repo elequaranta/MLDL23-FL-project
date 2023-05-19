@@ -1,3 +1,4 @@
+from typing import Dict
 import numpy as np
 
 
@@ -117,6 +118,9 @@ class StreamSegMetrics(Metrics):
         return "\n" + "\n".join(string)
 
     def __str__(self):
+        if len(self.results) == 0:
+            self.get_results()
+
         string = "\n"
         ignore = ["Class IoU", "Class Acc", "Class Prec",
                   "Confusion Matrix Pred", "Confusion Matrix", "Confusion Matrix Text"]
@@ -137,3 +141,39 @@ class StreamSegMetrics(Metrics):
             string += "\tclass %d: %s\n" % (k, str(v))
 
         return string
+    
+class AggregatedFederatedMetrics():
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.n_clients = 0
+        self.results = {}
+        self.clients_result = {}
+
+    def update(self, metric: StreamSegMetrics, client_name: str) -> None:
+        update = metric.get_results()
+        self.clients_result[client_name] = update
+        self.n_clients += 1
+        updates_to_save = ["Overall Acc", "Mean Acc", "Mean Precision", "Mean IoU"]
+        for key in updates_to_save:
+            self.results[key] = self.results[key] + update[key] \
+                if key in self.results.keys() else update[key]
+
+    def calculate_results(self) -> Dict[str, float]:
+        results = {}
+        for k, v in self.results.items():
+            results[k] = v / self.n_clients
+        return results
+    
+    def __str__(self) -> str:
+        results = self.calculate_results()
+        string = "\n"
+        for k, v in results.items():
+            string += "%s: %f\n" % (k, v)
+        for k, v in self.clients_result.items():
+            string += f"{k}:\n"
+            string += "Mean IoU: %f\n" % (v["Mean IoU"])
+            string += "Mean Acc: %f\n" % (v["Mean Acc"])
+        return string
+
+    

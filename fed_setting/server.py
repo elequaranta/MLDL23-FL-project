@@ -5,12 +5,14 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
+import itertools
 
 from torch import optim
+import wandb
 from fed_setting.client import Client
 from torchvision.models.segmentation.deeplabv3 import DeepLabV3
 
-from utils.stream_metrics import StreamSegMetrics
+from utils.stream_metrics import AggregatedFederatedMetrics, StreamSegMetrics
 
 
 class Server:
@@ -25,7 +27,12 @@ class Server:
         self.train_clients = train_clients
         self.test_clients = test_clients
         self.model = model
-        self.metrics = metrics
+        self.client_metrics = metrics
+        self.aggregated_metrics = {
+            "eval_train": AggregatedFederatedMetrics("eval_train"),
+            "test_same_dom": AggregatedFederatedMetrics("test_same_dom"),
+            "test_diff_dom": AggregatedFederatedMetrics("test_diff_dom"),
+        }
         self.model_params_dict = copy.deepcopy(self.model.state_dict())
         self.optimizer = self._configure_optimizer()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -39,26 +46,27 @@ class Server:
         num_clients = min(self.args.clients_per_round, len(self.train_clients))
         return np.random.choice(self.train_clients, num_clients, replace=False)
 
-    def train_round(self, clients: np.ndarray[Client]) -> List[Tuple[int, OrderedDict]]:
+    def train_round(self, clients: np.ndarray[Client]) -> Tuple[List[Tuple[int, OrderedDict]], Dict[str, Dict[torch.Tensor, int]]]:
         """This method trains the model with the dataset of the clients. It handles the training at single round level
 
         Args:
             clients (np.ndarray[Client]): list of all the clients to train
 
         Returns:
-            List[Tuple[int, OrderedDict]]: number of samples used in the client & 
-                                           state_dict of clients' model
+            Tuple[List[Tuple[int, OrderedDict]], Dict[str, Dict[torch.Tensor, int]]]: number of samples used in the client, 
+                                           state_dict of clients' model and last loss of every client
         """
         updates = []
         self.optimizer.zero_grad()
+        losses = {}
         for i, c in enumerate(clients):
             self._load_server_model_on_client(c)
-            num_samples, state_dict = c.train()
-            
+            num_samples, state_dict, loss = c.train()
+            losses[c.name] = {'loss': loss, 'num_samples': num_samples}
             update = self._compute_client_delta(state_dict)
             updates.append((num_samples, update))
 
-        return updates
+        return updates, losses
 
     def aggregate(self, updates: List[Tuple[int, OrderedDict]]) -> OrderedDict:
         """
@@ -94,30 +102,44 @@ class Server:
         """
         for r in range(self.args.num_rounds):
             clients = self.select_clients()
-            updates = self.train_round(clients)
+            updates, losses = self.train_round(clients)
             self.update_model(updates)
-            
+
+            # Online many people weights the losses value with the size of the client's datatet
+            # could it be usefull?
+            if ((r + 1) % 5 == 0):
+                for k, v in losses.items:
+                    wandb.log({f"{k}-loss": v["loss"]}, step=r+1)
+
+        for client in itertools.chain(self.train_clients, self.test_clients):
+            self._load_server_model_on_client(client)
+
+        if torch.cuda.is_available():
+            print(torch.cuda.memory_summary(device=None, abbreviated=False))
 
     def eval_train(self):
         """
         This method handles the evaluation on the train clients
         """
-        metric = self.metrics["eval_train"]
+        metric = self.client_metrics["eval_train"]
+        agr_metric = self.aggregated_metrics["eval_train"]
         for client in self.train_clients:
             metric.reset()
-            self._test(client, metric)
+            client.test(metric)
+            agr_metric.update(metric, client.name)
+        print(agr_metric)
 
     def test(self):
         """
             This method handles the test on the test clients
         """
         for client in self.test_clients:
-            self.metrics[client.name].reset()
-            self._test(client, self.metrics[client.name])
-    
-    def _test(self, client: Client, metric: StreamSegMetrics) -> None:
-        client.test(metric)
-        print(metric)
+            metric = self.client_metrics[client.name]
+            metric.reset()
+            agr_metric = self.aggregated_metrics[client.name]
+            client.test(metric)
+            agr_metric.update(metric, client.name)
+        print(agr_metric)
 
 
     def _load_server_model_on_client(self, client: Client) -> None:
