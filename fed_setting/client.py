@@ -65,7 +65,7 @@ class Client:
             raise NotImplementedError("Select a type of optimizer already implemented")
         
         scheduler = get_scheduler(self.args, optimizer,
-                                  max_iter=10000 * self.args.num_epochs * len(self.train_loader))
+                                  max_iter=10 * self.args.num_epochs * len(self.train_loader))
         return optimizer, scheduler
 
     def run_epoch(self, 
