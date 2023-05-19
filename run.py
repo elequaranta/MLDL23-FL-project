@@ -65,7 +65,7 @@ def init_env():
 
         if not args.not_use_wandb:
             wandb.init(
-                project="centralized-training", 
+                project=args.project, 
                 name=args.exp_name, 
                 config=vars(args))
 

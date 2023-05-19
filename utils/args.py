@@ -3,6 +3,7 @@ import argparse
 OPTIMIZER = ['SGD', 'Adam']
 POLICIES = ['poly', 'step', 'None']
 ENV = ['colab', 'other']
+PROJECT_NAME = ['centralized-training', 'federated-training']
 
 def get_parser():
     
@@ -68,6 +69,7 @@ def get_parser():
 
     # Logging options
     logging_args = parser.add_argument_group("Options for logging")
+    logging_args.add_argument('--project', type=str, required=True, choices=PROJECT_NAME, help='name of the project')
     logging_args.add_argument('--not_use_wandb', action='store_true', help="disable experiment track with wandb")
     logging_args.add_argument('--not_use_serializer', action='store_true', help="disable experiment track with build-in serializer")
     
