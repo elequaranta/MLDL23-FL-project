@@ -4,7 +4,6 @@ from typing import OrderedDict, Tuple
 import torch
 import wandb
 
-from tqdm import tqdm
 from torch import optim, nn
 from collections import defaultdict
 from torch.utils.data import DataLoader
@@ -115,8 +114,8 @@ class Client:
         optimizer, scheduler = self._configure_optimizer()
         self.model.to(self.device)
         self.model.train()
-        wandb.watch(self.model, self.criterion, log="all", log_freq=10)
-        for epoch in tqdm(range(self.args.num_epochs), desc=self.name):
+        #wandb.watch(self.model, self.criterion, log="all", log_freq=10)
+        for epoch in range(self.args.num_epochs):
             loss = self.run_epoch(epoch, optimizer=optimizer, scheduler=scheduler)
         
         state_dict = copy.deepcopy(self.model.state_dict())

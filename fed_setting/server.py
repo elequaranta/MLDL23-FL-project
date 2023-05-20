@@ -8,6 +8,7 @@ import numpy.typing as npt
 import torch
 import itertools
 
+from tqdm import tqdm
 from torch import optim
 import wandb
 from fed_setting.client import Client
@@ -102,7 +103,8 @@ class Server:
         """
         This method orchestrates the training the evals and tests at rounds level
         """
-        for r in range(self.args.num_rounds):
+        #wandb.watch(self.model, self.criterion, log="all", log_freq=10)
+        for r in tqdm(range(self.args.num_rounds)):
             clients = self.select_clients()
             updates, losses = self.train_round(clients)
             self.update_model(updates)
@@ -110,7 +112,7 @@ class Server:
             # Online many people weights the losses value with the size of the client's datatet
             # could it be usefull?
             if ((r + 1) % 5 == 0):
-                for k, v in losses.items:
+                for k, v in losses.items():
                     wandb.log({f"{k}-loss": v["loss"]}, step=r+1)
 
         for client in itertools.chain(self.train_clients, self.test_clients):
