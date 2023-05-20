@@ -118,8 +118,8 @@ class Server:
         for client in itertools.chain(self.train_clients, self.test_clients):
             self._load_server_model_on_client(client)
 
-        if torch.cuda.is_available():
-            print(torch.cuda.memory_summary(device=None, abbreviated=False))
+        #if torch.cuda.is_available():
+        #    print(torch.cuda.memory_summary(device=None, abbreviated=False))
 
     def eval_train(self):
         """
@@ -131,6 +131,7 @@ class Server:
             metric.reset()
             client.test(metric)
             agr_metric.update(metric, client.name)
+        wandb.summary["eval_train"] = agr_metric.calculate_results()
         print(agr_metric)
 
     def test(self):
@@ -140,10 +141,14 @@ class Server:
         for client in self.test_clients:
             metric = self.client_metrics[client.name]
             metric.reset()
-            agr_metric = self.aggregated_metrics[client.name]
+            self.aggregated_metrics[client.name]
             client.test(metric)
-            agr_metric.update(metric, client.name)
-        print(agr_metric)
+            self.aggregated_metrics[client.name].update(metric, client.name)
+        test_metrics_keys = filter(lambda key: "test" in key, self.aggregated_metrics.keys())
+        for metric_key in test_metrics_keys:
+            test_metric = self.aggregated_metrics[metric_key]
+            wandb.summary[metric_key] = test_metric.calculate_results()
+            print(test_metric)
 
 
     def _load_server_model_on_client(self, client: Client) -> None:

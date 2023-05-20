@@ -163,6 +163,9 @@ class AggregatedFederatedMetrics():
         results = {}
         for k, v in self.results.items():
             results[k] = v / self.n_clients
+        for k, v in self.clients_result.items():
+            results[f"{k} - Mean IoU"] = v["Mean IoU"]
+            results[f"{k} - Mean Acc"] = v["Mean Acc"]
         return results
     
     def __str__(self) -> str:
