@@ -123,7 +123,7 @@ class Server(Experiment):
             # could it be usefull?
             if ((r + 1) % 5 == 0):
                 for k, v in losses.items():
-                    self.logger.log({f"{k}-loss": v["loss"]}, step=r+1)
+                    self.logger.log({f"{k}-loss": v["loss"], "step": r+1})
 
         for client in itertools.chain(self.train_clients, self.test_clients):
             self._load_server_model_on_client(client)

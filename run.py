@@ -58,12 +58,12 @@ def get_args() -> Namespace:
     return args
 
 def get_transforms(args: Namespace) -> Tuple[sstr.Compose, sstr.Compose]:
-    print('Generate Transformation...')
+    print('Generating Transformation... \U0001F975')
     return TransformsFactory(args).construct()
 
 def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transforms: sstr.Compose) \
     -> Tuple[List[VisionDataset], List[VisionDataset]]:
-    print('Generate datasets...')
+    print('Generating Datasets... \U0001F975')
     match args.dataset:
         case DatasetOptions.IDDA:
             return IddaDatasetFactory(args.framework, train_transforms, test_transforms).construct()
@@ -71,7 +71,7 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
             raise NotImplementedError("The dataset chosen is not implemented")
         
 def get_model(args: Namespace):
-    print(f'Initializing model...')
+    print(f'Initializing Model... \U0001F975')
     match args.model:
         case ModelOptions.DEEPLABv3_MOBILENETv2:
             return DeepLabV3MobileNetV2Factory(dataset_type=args.dataset).construct()
@@ -79,7 +79,7 @@ def get_model(args: Namespace):
             raise NotImplementedError("The model chosen is not implemented")
         
 def get_optimizer(args: Namespace, model) -> Tuple[Optimizer, OptimizerFactory]:
-    print('Initializing optimizer...')
+    print('Initializing Optimizer... \U0001F975')
     match args.optimizer:
         case OptimizerOptions.SGD:
             optimizer_factory = SGDFactory(args.lr, args.weight_decay, args.momentum, model.parameters())
@@ -93,7 +93,7 @@ def get_optimizer(args: Namespace, model) -> Tuple[Optimizer, OptimizerFactory]:
 
 def get_scheduler_factory(args: Namespace, len_train_dataset: int, optimizer: Optimizer) \
     -> SchedulerFactory:
-    print('Generation scheduler')
+    print('Generating Scheduler... \U0001F975')
     match args.lr_policy:
         case SchedulerOptions.POLY:
             max_iter = math.floor(args.num_epochs * (len_train_dataset / args.bs))
