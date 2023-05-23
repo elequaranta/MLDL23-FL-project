@@ -146,7 +146,8 @@ class Server(Experiment):
             metric.reset()
             client.test(metric)
             agr_metric.update(metric, client.name)
-        self.logger.summary["eval_train"] = agr_metric.calculate_results()
+        results = agr_metric.calculate_results()
+        self.logger.summary({"eval_train":results})
         print(agr_metric)
 
     @override
@@ -163,7 +164,8 @@ class Server(Experiment):
         test_metrics_keys = filter(lambda key: "test" in key, self.aggregated_metrics.keys())
         for metric_key in test_metrics_keys:
             test_metric = self.aggregated_metrics[metric_key]
-            self.logger.summary[metric_key] = test_metric.calculate_results()
+            result = test_metric.calculate_results()
+            self.logger.summary({metric_key: result})
             print(test_metric)
 
     @override
