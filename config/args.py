@@ -1,9 +1,6 @@
 import argparse
+from config.enums import *
 
-OPTIMIZER = ['SGD', 'Adam']
-POLICIES = ['poly', 'step', 'None']
-ENV = ['colab', 'other']
-PROJECT_NAME = ['centralized-training', 'federated-training']
 
 def get_parser():
     
@@ -23,9 +20,10 @@ def get_parser():
     general = parser.add_argument_group("Run option")
     general.add_argument('--exp_name', type=str, required=True, help='name of the experiment running')
     general.add_argument('--seed', type=int, default=0, help='random seed')
-    general.add_argument('--dataset', type=str, choices=['idda', 'femnist'], required=True, help='dataset name')
-    general.add_argument('--model', type=str, choices=['deeplabv3_mobilenetv2', 'resnet18', 'cnn'], help='model name')
+    general.add_argument('--dataset', type=DatasetOptions, choices=list(DatasetOptions), required=True, help='dataset name')
+    general.add_argument('--model', type=ModelOptions, choices=list(ModelOptions), help='model name')
     general.add_argument('--num_epochs', type=int, help='number of local epochs')
+    general.add_argument('--phase', type=ExperimentPhase, choices=list(ExperimentPhase), required=True, help='Phase of the experiment')
 
     # Federated options
     federated_args = federated_parser.add_argument_group("Options for federated experiments")
@@ -43,12 +41,12 @@ def get_parser():
     learning_args.add_argument('--bs', type=int, default=4, help='batch size')
     learning_args.add_argument('--weight_decay', type=float, default=0, help='weight decay')
     learning_args.add_argument('--momentum', type=float, default=0.9, help='momentum')
-    learning_args.add_argument('--optimizer', type=str, default='SGD', choices=OPTIMIZER, help='optimizer type')
+    learning_args.add_argument('--optimizer', type=OptimizerOptions, default='SGD', choices=list(OptimizerOptions), help='optimizer type')
     
 
     # Scheduler options
     scheduler_args = parser.add_argument_group("Options for scheduling")
-    scheduler_args.add_argument('--lr_policy', type=str, default='poly', choices=POLICIES, help='lr schedule policy')
+    scheduler_args.add_argument('--lr_policy', type=SchedulerOptions, default='poly', choices=list(SchedulerOptions), help='lr schedule policy')
     scheduler_args.add_argument('--lr_power', type=float, default=0.9, help='power for polyLR')
     scheduler_args.add_argument('--lr_decay_step', type=int, default=15, help='decay step for stepLR')
     scheduler_args.add_argument('--lr_decay_factor', type=float, default=0.1, help='decay factor for stepLR')
@@ -59,18 +57,15 @@ def get_parser():
     transforms_args.add_argument('--max_scale', type=float, default=2.0, help='define the highest value for scale')
     transforms_args.add_argument('--h_resize', type=int, default=512, help='define the resize value for image H ')
     transforms_args.add_argument('--w_resize', type=int, default=1024, help='define the resize value for image W ')
-    transforms_args.add_argument('--use_test_resize', action='store_true', help='whether to use test resize')
     transforms_args.add_argument('--jitter', action='store_true', help='whether to use color jitter')
-    transforms_args.add_argument('--cv2_transform', action='store_true', help='whether to use cv2_transforms')
     transforms_args.add_argument('--rrc_transform', action='store_true', help='whether to use random resized crop')
     transforms_args.add_argument('--rsrc_transform', action='store_true', help='whether to use random scale random crop')
-    transforms_args.add_argument('--cts_norm', action='store_true', help='whether to use cts normalization otherwise 0.5 for mean and std')
-    transforms_args.add_argument('--eros_norm', action='store_true', help='whether to use eros normalization otherwise 0.5 for mean and std')
+    transforms_args.add_argument('--norm', type=NormOptions, choices=list(NormOptions), help='whether to use cts normalization or eros normalization')
 
     # Logging options
     logging_args = parser.add_argument_group("Options for logging")
-    logging_args.add_argument('--project', type=str, required=True, choices=PROJECT_NAME, help='name of the project')
+    logging_args.add_argument('--project', type=ProjectNameOptions, required=True, choices=list(ProjectNameOptions), help='name of the project')
     logging_args.add_argument('--not_use_wandb', action='store_true', help="disable experiment track with wandb")
-    logging_args.add_argument('--not_use_serializer', action='store_true', help="disable experiment track with build-in serializer")
+    logging_args.add_argument('--not_use_local_logging', action='store_true', help="disable experiment track with build-in serializer")
     
     return parser

@@ -1,31 +1,38 @@
-from argparse import Namespace
 import copy
 from collections import OrderedDict
+import enum
 from typing import Dict, List, Tuple
 
 import numpy as np
 import numpy.typing as npt
+from overrides import override
 import torch
 import itertools
 
 from tqdm import tqdm
 from torch import optim
-import wandb
+from factories.abstract_factories import Experiment, OptimizerFactory
 from fed_setting.client import Client
 from torchvision.models.segmentation.deeplabv3 import DeepLabV3
+from fed_setting.snapshot import SnapshotImpl, Snapshot
+from loggers.logger import BaseDecorator
 
 from utils.stream_metrics import AggregatedFederatedMetrics, StreamSegMetrics
 
 
-class Server:
+class Server(Experiment):
 
     def __init__(self, 
-                 args: Namespace, 
+                 n_rounds: int,
+                 n_clients_round: int,
                  train_clients: List[Client], 
                  test_clients: List[Client], 
-                 model: DeepLabV3, 
-                 metrics: Dict[str, StreamSegMetrics]):
-        self.args = args
+                 model: DeepLabV3,
+                 optimizer_factory: OptimizerFactory,
+                 metrics: Dict[str, StreamSegMetrics],
+                 logger: BaseDecorator):
+        self.n_rounds = n_rounds
+        self.n_clients_round = n_clients_round
         self.train_clients = train_clients
         self.test_clients = test_clients
         self.model = model
@@ -38,7 +45,8 @@ class Server:
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.model_params_dict = copy.deepcopy(self.model.state_dict())
-        self.optimizer = self._configure_optimizer()
+        self.optimizer = optimizer_factory.construct()
+        self.logger = logger
 
     def select_clients(self):
         """Select a random subset of clients from the pool
@@ -46,7 +54,7 @@ class Server:
         Returns:
             Client | np.ndarray[Client]: collection of clients extracted
         """
-        num_clients = min(self.args.clients_per_round, len(self.train_clients))
+        num_clients = min(self.n_clients_round, len(self.train_clients))
         return np.random.choice(self.train_clients, num_clients, replace=False)
 
     def train_round(self, clients) -> Tuple[List[Tuple[int, OrderedDict]], Dict[str, Dict[torch.Tensor, int]]]:
@@ -99,28 +107,35 @@ class Server:
         self._server_opt(averaged_state_dicts)
         self.model_params_dict = copy.deepcopy(self.model.state_dict())
 
-    def train(self):
+    @override
+    def train(self, starting:int = 0) -> int:
         """
         This method orchestrates the training the evals and tests at rounds level
         """
-        #wandb.watch(self.model, self.criterion, log="all", log_freq=10)
-        for r in tqdm(range(self.args.num_rounds)):
+        n_exaple = 0
+        self.logger.watch(self.model, self.criterion, log="all", log_freq=10)
+        for r in tqdm(range(starting, self.n_rounds)):
             clients = self.select_clients()
-            updates, losses = self.train_round(clients)
+            updates, losses = self.train_round(clients)    
             self.update_model(updates)
 
             # Online many people weights the losses value with the size of the client's datatet
             # could it be usefull?
             if ((r + 1) % 5 == 0):
                 for k, v in losses.items():
-                    wandb.log({f"{k}-loss": v["loss"]}, step=r+1)
+                    self.logger.log({f"{k}-loss": v["loss"]}, step=r+1)
 
         for client in itertools.chain(self.train_clients, self.test_clients):
             self._load_server_model_on_client(client)
+        
+        for client in self.train_clients:
+            n_exaple += len(client.dataset)
 
         #if torch.cuda.is_available():
         #    print(torch.cuda.memory_summary(device=None, abbreviated=False))
+        return n_exaple
 
+    @override
     def eval_train(self):
         """
         This method handles the evaluation on the train clients
@@ -131,9 +146,10 @@ class Server:
             metric.reset()
             client.test(metric)
             agr_metric.update(metric, client.name)
-        wandb.summary["eval_train"] = agr_metric.calculate_results()
+        self.logger.summary["eval_train"] = agr_metric.calculate_results()
         print(agr_metric)
 
+    @override
     def test(self):
         """
             This method handles the test on the test clients
@@ -147,8 +163,28 @@ class Server:
         test_metrics_keys = filter(lambda key: "test" in key, self.aggregated_metrics.keys())
         for metric_key in test_metrics_keys:
             test_metric = self.aggregated_metrics[metric_key]
-            wandb.summary[metric_key] = test_metric.calculate_results()
+            self.logger.summary[metric_key] = test_metric.calculate_results()
             print(test_metric)
+
+    @override
+    def save(self) -> Snapshot:
+        server_state = {
+            Server.ServerStateKey.MODEL_DICT: self.model_params_dict,
+            Server.ServerStateKey.OPTIMIZER_DICT: self.optimizer.state_dict(),
+            Server.ServerStateKey.ROUND: self.n_rounds,
+            Server.ServerStateKey.CLIENTS_ROUND: self.n_clients_round
+        }
+        snapshot = SnapshotImpl(server_state, name="fed-server")
+        return snapshot
+
+    @override
+    def load_snapshot(self, snapshot: Snapshot) -> int:
+        state = snapshot.get_state()
+        self.model.load_state_dict(state[Server.ServerStateKey.MODEL_DICT])
+        self.model_params_dict = copy.deepcopy(self.model.state_dict())
+        self.optimizer.load_state_dict(state[Server.ServerStateKey.OPTIMIZER_DICT])
+        self.n_clients_round = state[Server.ServerStateKey.CLIENTS_ROUND]
+        return state[Server.ServerStateKey.ROUND]
 
 
     def _load_server_model_on_client(self, client: Client) -> None:
@@ -177,17 +213,9 @@ class Server:
         for k, x, y in zip(self.model_params_dict.keys(), self.model_params_dict.values(), client_model.values()):
             delta[k] = y - x if "running" not in k and "num_batches_tracked" not in k else y
         return delta
-
-
-    def _configure_optimizer(self):
-        params = [{"params": filter(lambda p: p.requires_grad, self.model.parameters()),
-                        'weight_decay': self.args.weight_decay}]
-        if self.args.optimizer == 'SGD':
-            optimizer = optim.SGD(params, lr=self.args.lr, momentum=self.args.momentum,
-                                  weight_decay=self.args.weight_decay, nesterov=True)
-        elif self.args.optimizer == "Adam":
-            optimizer = optim.Adam(params, lr=self.args.lr, weight_decay=self.args.weight_decay)
-        else:
-            raise NotImplementedError("Select a type of optimizer already implemented")
-        
-        return optimizer
+    
+    class ServerStateKey(enum.Enum):
+        MODEL_DICT = "model_dict"
+        OPTIMIZER_DICT = "optimizer_dict"
+        ROUND = "round_number"
+        CLIENTS_ROUND = "clients_round"

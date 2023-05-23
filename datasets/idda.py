@@ -25,7 +25,10 @@ class IDDADataset(VisionDataset):
 
         self.image_path = os.path.join(root, 'images')
         self.label_path = os.path.join(root, 'labels')
-        
+
+    @staticmethod
+    def get_classes_number() -> int:
+        return 16
 
     @staticmethod
     def get_mapping():
