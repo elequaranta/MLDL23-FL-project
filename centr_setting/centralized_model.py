@@ -17,7 +17,6 @@ import wandb
 from factories.abstract_factories import Experiment, OptimizerFactory, SchedulerFactory
 from fed_setting.snapshot import Snapshot, SnapshotImpl
 from loggers.logger import BaseDecorator
-from utils.init_fs import Serializer
 from utils.stream_metrics import StreamSegMetrics
 
 

@@ -113,7 +113,7 @@ class Server(Experiment):
         This method orchestrates the training the evals and tests at rounds level
         """
         n_exaple = 0
-        self.logger.watch(self.model, self.criterion, log="all", log_freq=10)
+        self.logger.watch(self.model, log="all", log_freq=10)
         for r in tqdm(range(starting, self.n_rounds)):
             clients = self.select_clients()
             updates, losses = self.train_round(clients)    
