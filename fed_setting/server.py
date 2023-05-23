@@ -121,9 +121,9 @@ class Server(Experiment):
 
             # Online many people weights the losses value with the size of the client's datatet
             # could it be usefull?
-            if ((r + 1) % 5 == 0):
-                for k, v in losses.items():
-                    self.logger.log({f"{k}-loss": v["loss"], "step": r+1})
+            #if ((r + 1) % 5 == 0):
+            for k, v in losses.items():
+                self.logger.log({f"{k}-loss": v["loss"], "step": r+1})
 
         for client in itertools.chain(self.train_clients, self.test_clients):
             self._load_server_model_on_client(client)

@@ -93,7 +93,7 @@ class CentralizedModel(Experiment):
 
             # Log loss every 5 batch
             if ((batch_ct) % 5 == 0):
-                self.logger.log({"epoch": cur_epoch, "loss": loss, "step": example_ct})
+                self.logger.log({"epoch": cur_epoch, "loss": loss, "lr":scheduler.get_lr()[0], "step": example_ct})
 
     @override
     def train(self, starting:int = 0) -> int:
