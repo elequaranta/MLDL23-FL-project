@@ -6,3 +6,4 @@ mldl23fl.yml
 .DS_Store
 wandb
 models_saved
+wandb_checkpoint

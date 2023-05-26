@@ -2,6 +2,7 @@ import enum
 
 class DatasetOptions(str, enum.Enum):
     IDDA = "idda"
+    GTA = "gta"
 
 class ModelOptions(str, enum.Enum):
     DEEPLABv3_MOBILENETv2 = "deeplabv3_mobilenetv2"
@@ -22,6 +23,7 @@ class ProjectNameOptions(str, enum.Enum):
 class NormOptions(str, enum.Enum):
     EROS = "eros_norm"
     CTS = "cts_norm"
+    GTA = "gta_norm"
 
 class ExperimentPhase(str, enum.Enum):
     ALL = "all"

@@ -1,6 +1,7 @@
 import copy
 from collections import OrderedDict
 import enum
+import math
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -22,6 +23,8 @@ from utils.stream_metrics import AggregatedFederatedMetrics, StreamSegMetrics
 
 class Server(Experiment):
 
+    N_CHECKPOINTS_RUN: int = 3
+
     def __init__(self, 
                  n_rounds: int,
                  n_clients_round: int,
@@ -36,6 +39,7 @@ class Server(Experiment):
         self.train_clients = train_clients
         self.test_clients = test_clients
         self.model = model
+        self.rounds_trained = 0
         self.client_metrics = metrics
         self.aggregated_metrics = {
             "eval_train": AggregatedFederatedMetrics("eval_train"),
@@ -112,6 +116,8 @@ class Server(Experiment):
         """
         This method orchestrates the training the evals and tests at rounds level
         """
+        self.rounds_trained = starting
+        n_rounds_between_snap = math.ceil(self.n_rounds - starting / self.N_CHECKPOINTS_RUN)
         n_exaple = 0
         self.logger.watch(self.model, log="all", log_freq=10)
         for r in tqdm(range(starting, self.n_rounds)):
@@ -124,6 +130,10 @@ class Server(Experiment):
             #if ((r + 1) % 5 == 0):
             for k, v in losses.items():
                 self.logger.log({f"{k}-loss": v["loss"], "step": r+1})
+
+            if (self.rounds_trained % n_rounds_between_snap == 0):
+                self.logger.save(self.save())
+
 
         for client in itertools.chain(self.train_clients, self.test_clients):
             self._load_server_model_on_client(client)
@@ -176,7 +186,7 @@ class Server(Experiment):
             Server.ServerStateKey.ROUND: self.n_rounds,
             Server.ServerStateKey.CLIENTS_ROUND: self.n_clients_round
         }
-        snapshot = SnapshotImpl(server_state, name="fed-server")
+        snapshot = SnapshotImpl(server_state, name=f"fed-server-{self.rounds_trained}")
         return snapshot
 
     @override

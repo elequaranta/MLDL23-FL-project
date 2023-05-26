@@ -24,6 +24,7 @@ def get_parser():
     general.add_argument('--model', type=ModelOptions, choices=list(ModelOptions), help='model name')
     general.add_argument('--num_epochs', type=int, help='number of local epochs')
     general.add_argument('--phase', type=ExperimentPhase, choices=list(ExperimentPhase), required=True, help='Phase of the experiment')
+    general.add_argument('--load_checkpoint', nargs='+', type=str, help='use: "model_name.torch wandb_run_id" - load the experiment state of a previous run')
 
     # Federated options
     federated_args = federated_parser.add_argument_group("Options for federated experiments")
@@ -60,7 +61,7 @@ def get_parser():
     transforms_args.add_argument('--jitter', action='store_true', help='whether to use color jitter')
     transforms_args.add_argument('--rrc_transform', action='store_true', help='whether to use random resized crop')
     transforms_args.add_argument('--rsrc_transform', action='store_true', help='whether to use random scale random crop')
-    transforms_args.add_argument('--norm', type=NormOptions, choices=list(NormOptions), help='whether to use cts normalization or eros normalization')
+    transforms_args.add_argument('--norm', type=NormOptions, default=NormOptions.EROS, choices=list(NormOptions), help='whether to use cts normalization or eros normalization')
 
     # Logging options
     logging_args = parser.add_argument_group("Options for logging")

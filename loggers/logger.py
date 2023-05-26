@@ -8,12 +8,12 @@ import wandb
 import inspect
 from abc import ABC, abstractmethod
 from overrides import overrides
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, Optional
 from pathlib import Path
 from fed_setting.snapshot import Snapshot
 
 
-class Logger(ABC):
+class Logger(ABC, object):
 
     def __init__(self, args: Namespace) -> None:
         self._args = args
@@ -47,6 +47,10 @@ class Logger(ABC):
         pass
 
     @abstractmethod
+    def restore_snapshot(self, file_name: str, run_path: str) -> Optional[Snapshot]:
+        pass
+
+    @abstractmethod
     def finish(self) -> None:
         pass
 
@@ -76,6 +80,10 @@ class DummyLogger(Logger):
     @overrides
     def save_results(self, data: Dict[str, Any]) -> None:
         pass
+
+    @overrides
+    def restore_snapshot(self, file_name: str, run_path: str) -> Optional[Snapshot]:
+        return None
 
     @overrides
     def finish(self) -> None:
@@ -121,10 +129,16 @@ class BaseDecorator(Logger):
         self._logger.save_results(data)
 
     @overrides
+    def restore_snapshot(self, file_name: str, run_path: str) -> Optional[Snapshot]:
+        return self._logger.restore_snapshot(file_name, run_path)
+
+    @overrides
     def finish(self) -> None:
         self._logger.finish()
 
 class WandbLoggerDecorator(BaseDecorator):
+
+    root = Path("wandb_checkpoint")
 
     def __init__(self, logger: Logger) -> None:
         super().__init__(logger)
@@ -133,6 +147,8 @@ class WandbLoggerDecorator(BaseDecorator):
                     name=self.args.exp_name, 
                     config=vars(self.args)
         )
+        if not WandbLoggerDecorator.root.exists():
+            WandbLoggerDecorator.root.mkdir()
     
     @overrides
     def log(self, data: Dict[str, Any]) -> None:
@@ -144,7 +160,7 @@ class WandbLoggerDecorator(BaseDecorator):
     def save(self, snapshot: Snapshot) -> None:
         snapshot_tmp_path = Path(wandb.run.dir).joinpath(f"{snapshot.get_name()}.torch")
         torch.save(snapshot, snapshot_tmp_path)
-        wandb.save(snapshot_tmp_path.as_posix())
+        wandb.save(snapshot_tmp_path.as_posix(), policy="now")
         self.logger.save(snapshot)
 
     @overrides
@@ -161,6 +177,11 @@ class WandbLoggerDecorator(BaseDecorator):
               log_freq: int = 1000) -> None:
         wandb.watch(models, criterion, log, log_freq)
         self._logger.watch(models, criterion, log, log_freq)
+
+    @overrides
+    def restore_snapshot(self, file_name: str, run_path: str) -> Optional[Snapshot]:
+        file = wandb.restore(file_name, run_path, root=WandbLoggerDecorator.root)
+        return torch.load(file.name, weights_only=False)
 
     @overrides
     def finish(self) -> None:

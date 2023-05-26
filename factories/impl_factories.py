@@ -8,6 +8,8 @@ from torch.optim import SGD, Adam, Optimizer
 from torchvision.datasets import VisionDataset
 from torchvision.models.segmentation.deeplabv3 import _SimpleSegmentationModel
 from centr_setting.centralized_model import CentralizedModel
+from datasets.base_dataset import BaseDataset
+from datasets.gta import GTADataset
 
 from factories.abstract_factories import *
 from config.enums import DatasetOptions, NormOptions
@@ -79,13 +81,16 @@ class IddaDatasetFactory(DatasetFactory):
 
     def __init__(self,
                  framework: str,
-                 train_transforms,
-                 test_transforms) -> None:
-        super().__init__(train_transforms, test_transforms)
-        self.root = "data/idda"
+                 train_transforms: sstr.Compose,
+                 test_transforms: sstr.Compose,
+                 test_dataset: bool = False) -> None:
+        super().__init__(root="data/idda", 
+                         train_transforms=train_transforms, 
+                         test_transforms=test_transforms)
         self.framework = framework
+        self.test_dataset = test_dataset
         
-    def construct(self) -> Tuple[List[VisionDataset], List[VisionDataset]]:
+    def construct(self) -> Tuple[List[BaseDataset], List[BaseDataset]]:
         train_datasets = []
         test_datasets = []
         
@@ -93,33 +98,59 @@ class IddaDatasetFactory(DatasetFactory):
             case "centralized":
                 with open(os.path.join(self.root, 'train.txt'), 'r') as f:
                     all_data = f.readlines()
-                    train_datasets.append(IDDADataset(root=self.root,
-                                list_samples=all_data,
-                                transform=self.train_transforms,
-                                client_name="train"))
+                    if self.test_dataset == False:
+                        train_datasets.append(IDDADataset(root=self.root,
+                                    list_samples=all_data,
+                                    transform=self.train_transforms,
+                                    test_mode=False,
+                                    client_name="train"))
+                    else:
+                        test_datasets.append(IDDADataset(root=self.root,
+                                    list_samples=all_data,
+                                    transform=self.test_transforms,
+                                    test_mode=True,
+                                    client_name="eval_train"))
+
             case "federated":
-                with open(os.path.join(self.root, 'train.json'), 'r') as f:
-                    all_data = json.load(f)
-                    for client_id in all_data.keys():
-                        train_datasets.append(IDDADataset(root=self.root, 
-                                                    list_samples=all_data[client_id], 
-                                                    transform=self.train_transforms,
-                                                    client_name=client_id))
+                if self.test_dataset == False:
+                    with open(os.path.join(self.root, 'train.json'), 'r') as f:
+                        all_data = json.load(f)
+                        for client_id in all_data.keys():
+                                train_datasets.append(IDDADataset(root=self.root, 
+                                                            list_samples=all_data[client_id], 
+                                                            transform=self.train_transforms,
+                                                            client_name=client_id))
+                
         with open(os.path.join(self.root, 'test_same_dom.txt'), 'r') as f:
             test_same_dom_data = f.read().splitlines()
             test_datasets.append(IDDADataset(root=self.root,
                                         list_samples=test_same_dom_data, 
                                         transform=self.test_transforms,
+                                        test_mode=True,
                                         client_name='test_same_dom'))
         with open(os.path.join(self.root, 'test_diff_dom.txt'), 'r') as f:
             test_diff_dom_data = f.read().splitlines()
             test_datasets.append(IDDADataset(root=self.root,
                                         list_samples=test_diff_dom_data,
                                         transform=self.test_transforms,
+                                        test_mode=True,
                                         client_name='test_diff_dom'))
             
         return train_datasets, test_datasets
     
+class GTADatasetFactory(DatasetFactory):
+
+    def __init__(self,
+                 train_transforms: sstr.Compose,) -> None:
+        super().__init__("data/gta", train_transforms, None)
+
+    def construct(self) -> Tuple[List[BaseDataset], List[BaseDataset]]:
+        with open(os.path.join(self.root, 'train.txt'), 'r') as f:
+            all_data = f.readlines()
+            return [GTADataset(root=self.root,
+                               list_samples=all_data,
+                               transform=self.train_transforms,
+                               client_name="train")], None
 class TransformsFactory():
 
     def __init__(self, args: Namespace) -> None:
@@ -137,6 +168,9 @@ class TransformsFactory():
             case NormOptions.CTS:
                 self.mean = [0.5, 0.5, 0.5]
                 self.std = [0.5, 0.5, 0.5]
+            case NormOptions.GTA:
+                self.mean = [73.158359210711552, 82.908917542625858, 72.392398761941593]
+                self.std =  [47.675755341814678, 48.494214368814916, 47.736546325441594]
 
     def construct(self) -> Tuple[sstr.Compose, sstr.Compose]:
         train_transform = []

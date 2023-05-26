@@ -6,7 +6,10 @@ from torch.optim import Optimizer
 from torch.nn.parameter import Parameter
 from torchvision.models.segmentation.deeplabv3 import _SimpleSegmentationModel
 from torchvision.datasets import VisionDataset
+from datasets.base_dataset import BaseDataset
+from datasets.gta import GTADataset
 
+import datasets.ss_transforms as sstr
 from config.enums import DatasetOptions
 from datasets.idda import IDDADataset
 from fed_setting.snapshot import Snapshot
@@ -50,6 +53,8 @@ class ModelFactory(ABC):
         match dataset_type:
             case DatasetOptions.IDDA:
                 self.dataset_class_number = IDDADataset.get_classes_number()
+            case DatasetOptions.GTA:
+                self.dataset_class_number = GTADataset.get_classes_number()
             case _:
                 raise NotImplementedError("The dataset requested is not implemented in ModelFactory")
     
@@ -59,12 +64,13 @@ class ModelFactory(ABC):
 
 class DatasetFactory(ABC):
 
-    def __init__(self, train_transforms, test_transforms) -> None:
+    def __init__(self, root:str, train_transforms: sstr.Compose, test_transforms: sstr.Compose) -> None:
+        self.root = root
         self.train_transforms = train_transforms
         self.test_transforms = test_transforms
 
     @abstractmethod
-    def construct(self) -> List[VisionDataset]:
+    def construct(self) -> List[BaseDataset]:
         pass
 
 class Experiment(ABC):

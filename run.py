@@ -7,12 +7,6 @@ import torch
 import importlib
 import numpy as np
 from argparse import Namespace
-from typing import Any, Dict, List, Tuple
-from torch import nn
-from torchvision.datasets import VisionDataset
-from torchvision.models import resnet18
-from datasets.utils import get_dataset_num_classes
-from models.deeplabv3 import deeplabv3_mobilenetv2
 
 # Imports from our code base
 
@@ -34,18 +28,14 @@ def set_seed(random_seed):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-def set_metrics(args):
-    num_classes = get_dataset_num_classes(args.dataset)
-    if args.model == 'deeplabv3_mobilenetv2':
+def set_metrics(args, ds: BaseDataset):
+    #num_classes = get_dataset_num_classes(args.dataset)
+    num_classes = ds.get_classes_number()
+    if args.model == ModelOptions.DEEPLABv3_MOBILENETv2:
         metrics = {
             'eval_train': StreamSegMetrics(num_classes, 'eval_train'),
             'test_same_dom': StreamSegMetrics(num_classes, 'test_same_dom'),
             'test_diff_dom': StreamSegMetrics(num_classes, 'test_diff_dom')
-        }
-    elif args.model == 'resnet18' or args.model == 'cnn':
-        metrics = {
-            'eval_train': StreamClsMetrics(num_classes, 'eval_train'),
-            'test': StreamClsMetrics(num_classes, 'test')
         }
     else:
         raise NotImplementedError
@@ -67,6 +57,13 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
     match args.dataset:
         case DatasetOptions.IDDA:
             return IddaDatasetFactory(args.framework, train_transforms, test_transforms).construct()
+        case DatasetOptions.GTA:
+            train_dataset, _ = GTADatasetFactory(train_transforms).construct()
+            _, test_datasets = IddaDatasetFactory(args.framework, 
+                                                  train_transforms, 
+                                                  test_transforms, 
+                                                  test_dataset=True).construct()
+            return train_dataset, test_datasets
         case _:
             raise NotImplementedError("The dataset chosen is not implemented")
         
@@ -129,7 +126,7 @@ def init_env():
             reduction = MeanReduction()
         optimizer, optimizer_factory = get_optimizer(args, model)
         scheduler_factory = get_scheduler_factory(args, len(train_datasets[0]), optimizer)
-        metrics = set_metrics(args)
+        metrics = set_metrics(args, test_datasets[0])
         
         match args.framework:
             case 'federated':
@@ -155,17 +152,27 @@ def init_env():
             case _:
                 raise NotImplementedError("The framework chosen is not implemented")
 
+        starting = 0
+        if args.load_checkpoint is not None:
+            snapshot = logger.restore_snapshot(*args.load_checkpoint)
+            if snapshot is not None:
+                starting = experiment.load_snapshot(snapshot)
+
         match args.phase:
             case ExperimentPhase.ALL:
-                experiment.train()
+                experiment.train(starting)
                 snapshot = experiment.save()
                 logger.save(snapshot)
-                experiment.eval_train()
+                if not (args.dataset == DatasetOptions.GTA):
+                    experiment.eval_train()
                 experiment.test()
             case ExperimentPhase.TRAIN:
-                experiment.train()
+                experiment.train(starting)
+                snapshot = experiment.save()
+                logger.save(snapshot)
             case ExperimentPhase.TEST:
-                experiment.eval_train()
+                if not (args.dataset == DatasetOptions.GTA):
+                    experiment.eval_train()
                 experiment.test()
             case _:
                 raise NotImplementedError("The phase chosen is not implemented")
@@ -173,6 +180,7 @@ def init_env():
         end = time.time()
         print(f"Elapsed time: {round(end - start, 2)}")
     finally:
+        logger.finish()
         torch.cuda.empty_cache()
 
 if __name__ == "__main__":

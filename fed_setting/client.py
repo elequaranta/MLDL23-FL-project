@@ -1,10 +1,11 @@
 import copy
 import torch
+import numpy as np
 from typing import Any, Callable, OrderedDict, Tuple
 from torch import nn
 from torch.utils.data import DataLoader
-from torchvision.datasets import VisionDataset
 from torchvision.models.segmentation.deeplabv3 import DeepLabV3
+from datasets.base_dataset import BaseDataset
 
 from factories.abstract_factories import OptimizerFactory, SchedulerFactory
 from utils.stream_metrics import StreamSegMetrics
@@ -15,20 +16,20 @@ class Client:
                  n_epochs: int,
                  batch_size: int,
                  reduction: Callable[[Any], Any],
-                 dataset: VisionDataset, 
+                 dataset: BaseDataset, 
                  model: DeepLabV3,
                  optimizer_factory: OptimizerFactory,
                  scheduler_factory: SchedulerFactory,
                  test_client=False):
         self.n_epochs = n_epochs
         self.dataset = dataset
-        self.name = self.dataset.client_name
+        self._name = self.dataset.name
         self.model = model
         if not test_client:
             self.data_loader = DataLoader(self.dataset, batch_size=batch_size, shuffle=True, drop_last=True)
         else:
             self.data_loader = DataLoader(self.dataset, batch_size=1, shuffle=False)
-        self.criterion = nn.CrossEntropyLoss(ignore_index=255, reduction='none')
+        self.criterion = nn.CrossEntropyLoss(ignore_index=-1, reduction='none')
         self.reduction = reduction
         self.optimizer_factory = optimizer_factory
         self.scheduler_factory = scheduler_factory
@@ -38,12 +39,16 @@ class Client:
 
     def __str__(self):
         return self.name
+    
+    @property
+    def name(self) -> str:
+        return self._name
 
-    @staticmethod
-    def update_metric(metric, outputs, labels):
+    # @staticmethod
+    def update_metric(self, metric, outputs, labels):
         _, prediction = outputs.max(dim=1)
+        prediction = np.array(self.dataset.convert_class()(prediction))
         labels = labels.cpu().numpy()
-        prediction = prediction.cpu().numpy()
         metric.update(labels, prediction)
 
     def run_epoch(self, cur_epoch: int) -> torch.Tensor:
