@@ -105,6 +105,7 @@ class CentralizedModel(Experiment):
         Returns:
             int: length of the dataset used in training
         """
+        self.epochs_trained = starting
         n_epochs_between_snap = math.ceil(self.n_epochs - starting / self.N_CHECKPOINTS_RUN)
         tot_num_samples = len(self.train_dataset)
         self.model.to(self.device)
