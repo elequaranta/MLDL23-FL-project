@@ -62,6 +62,7 @@ class CentralizedModel(Experiment):
     def update_metric(self, metric, outputs, labels):
         _, prediction = outputs.max(dim=1)
         labels = labels.cpu().numpy()
+        prediction = prediction.cpu()
         prediction = np.array(self.train_dataset.convert_class()(prediction))
         metric.update(labels, prediction)
 
