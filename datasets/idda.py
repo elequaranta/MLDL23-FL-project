@@ -9,7 +9,8 @@ import torch
 from datasets.base_dataset import BaseDataset
 import datasets.ss_transforms as tr
 
-class_eval = [255, 2, 4, 255, 11, 5, 0, 0, 1, 8, 13, 3, 7, 6, 255, 255, 15, 14, 12, 9, 10] # 21
+#class_eval = [255, 2, 4, 255, 11, 5, 0, 0, 1, 8, 13, 3, 7, 6, 255, 255, 15, 14, 12, 9, 10] # 21
+class_eval = [-1, 2, 4, -1, 11, 5, 0, 0, 1, 8, 13, 3, 7, 6, -1, -1, 15, 14, 12, 9, 10] # 21
 
 
 class IDDADataset(BaseDataset):
