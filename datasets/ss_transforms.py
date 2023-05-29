@@ -12,8 +12,6 @@ import math
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from factories.impl_factories import IddaDatasetFactory
-
 _pil_interpolation_to_str = {
     Image.NEAREST: 'PIL.Image.NEAREST',
     Image.BILINEAR: 'PIL.Image.BILINEAR',
@@ -752,8 +750,7 @@ class RandomScaleRandomCrop(object):
     
 class FDA(object):
 
-    def __init__(self, beta:float) -> None:
-        loader = DataLoader(IddaDatasetFactory("centralized", None, None).construct_trainig_dataset()[0])
+    def __init__(self, loader: DataLoader, beta: float) -> None:
         self.beta = beta
         self.styles = FDA._get_styles(loader, beta)
 

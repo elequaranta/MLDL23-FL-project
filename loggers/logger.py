@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from overrides import overrides
 from typing import Any, Dict, Literal, Optional
 from pathlib import Path
-from fed_setting.snapshot import Snapshot
+from experiment.snapshot import Snapshot
 
 
 class Logger(ABC, object):

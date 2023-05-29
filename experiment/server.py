@@ -5,18 +5,17 @@ import math
 from typing import Dict, List, Tuple
 
 import numpy as np
-import numpy.typing as npt
 from overrides import override
 import torch
 import itertools
 
 from tqdm import tqdm
-from torch import optim
-from factories.abstract_factories import Experiment, OptimizerFactory
-from fed_setting.client import Client
+from experiment.abs_factories import Experiment
+from experiment.client import Client
 from torchvision.models.segmentation.deeplabv3 import DeepLabV3
-from fed_setting.snapshot import SnapshotImpl, Snapshot
+from experiment.snapshot import SnapshotImpl, Snapshot
 from loggers.logger import BaseDecorator
+from models.abs_factories import OptimizerFactory
 
 from utils.stream_metrics import AggregatedFederatedMetrics, StreamSegMetrics
 

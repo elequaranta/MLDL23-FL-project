@@ -1,13 +1,11 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List
-import numpy as np
+from typing import Any, Callable, List
 from numpy.typing import ArrayLike
 from PIL import Image
-from torch import from_numpy
 import torch
 from torchvision.datasets import VisionDataset
-import datasets.ss_transforms as tr
+import datasets.ss_transforms as sst
 
 class BaseDataset(ABC, VisionDataset):
 
@@ -16,7 +14,7 @@ class BaseDataset(ABC, VisionDataset):
                  list_samples: List[str],
                  image_extension: str,
                  mask_extension: str,
-                 transform: tr.Compose = None,
+                 transform: sst.Compose = None,
                  client_name: str = None,
                  test_mode: bool = False,):
         super().__init__(root=root, transform=transform, target_transform=None)

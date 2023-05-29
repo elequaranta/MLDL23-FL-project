@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from torchvision.models.segmentation.deeplabv3 import DeepLabV3
 from datasets.base_dataset import BaseDataset
 
-from factories.abstract_factories import OptimizerFactory, SchedulerFactory
+from models.abs_factories import OptimizerFactory, SchedulerFactory
 from utils.stream_metrics import StreamSegMetrics
 
 class Client:

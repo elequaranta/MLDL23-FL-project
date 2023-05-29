@@ -1,22 +1,30 @@
 # Imports from libraries
+
 import math
 import random
 import time
-import wandb
+from typing import List, Tuple
 import torch
-import importlib
+from torch.optim import Optimizer
 import numpy as np
 from argparse import Namespace
 
 # Imports from our code base
 
-from factories.abstract_factories import *
-from factories.impl_factories import *
-from config.enums import ExperimentPhase, ModelOptions, OptimizerOptions, SchedulerOptions
-from config.args import get_parser
-from utils.stream_metrics import StreamClsMetrics, StreamSegMetrics
-from utils.utils import HardNegativeMining, MeanReduction
+import datasets.base_dataset as bdt
 import datasets.ss_transforms as sstr
+from config.enums import DatasetOptions, ExperimentPhase, ModelOptions, OptimizerOptions, SchedulerOptions
+from config.args import get_parser
+from datasets.impl_factories import GTADatasetFactory, IddaDatasetFactory, TransformsFactory
+from experiment.impl_factories import CentralizedFactory, FederatedFactory
+from models.abs_factories import OptimizerFactory, SchedulerFactory
+from models.impl_factories import AdamFactory, \
+                                  DeepLabV3MobileNetV2Factory, \
+                                  LambdaSchedulerFactory, \
+                                  SGDFactory, \
+                                  StepLRSchedulerFactory
+from utils.stream_metrics import StreamSegMetrics
+from utils.utils import HardNegativeMining, MeanReduction
 from loggers.logger import DummyLogger, LocalLoggerDecorator, Logger, WandbLoggerDecorator
 
 def set_seed(random_seed):
@@ -28,7 +36,7 @@ def set_seed(random_seed):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-def set_metrics(args, ds: BaseDataset):
+def set_metrics(args, ds: bdt.BaseDataset):
     #num_classes = get_dataset_num_classes(args.dataset)
     num_classes = ds.get_classes_number()
     if args.model == ModelOptions.DEEPLABv3_MOBILENETv2:
@@ -52,20 +60,29 @@ def get_transforms(args: Namespace) -> Tuple[sstr.Compose, sstr.Compose]:
     return TransformsFactory(args).construct()
 
 def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transforms: sstr.Compose) \
-    -> Tuple[List[VisionDataset], List[VisionDataset]]:
+    -> Tuple[List[bdt.BaseDataset], List[bdt.BaseDataset]]:
     print('Generating Datasets... \U0001F975')
-    match args.dataset:
+    training_datasets = []
+    test_datasets = []
+    idda_factory = IddaDatasetFactory(args.framework, train_transforms, test_transforms)
+    gta_factory = GTADatasetFactory(train_transforms)
+    match args.training_ds:
         case DatasetOptions.IDDA:
-            return IddaDatasetFactory(args.framework, train_transforms, test_transforms).construct()
+            training_datasets.append(idda_factory.construct_trainig_dataset()) 
         case DatasetOptions.GTA:
-            train_dataset, _ = GTADatasetFactory(train_transforms).construct()
-            _, test_datasets = IddaDatasetFactory(args.framework, 
-                                                  train_transforms, 
-                                                  test_transforms, 
-                                                  test_dataset=True).construct()
-            return train_dataset, test_datasets
+            training_datasets.append(gta_factory.construct_trainig_dataset())
         case _:
-            raise NotImplementedError("The dataset chosen is not implemented")
+            raise NotImplementedError("The dataset chosen for training is not implemented")
+        
+    match args.test_ds:
+        case DatasetOptions.IDDA:
+            test_datasets.append(idda_factory.construct_test_dataset())
+        case DatasetOptions.GTA:
+            idda_factory.set_in_test_mode()
+            test_datasets.append(idda_factory.construct_test_dataset())
+        case _:
+            raise NotImplementedError("The dataset chosen for training is not implemented")
+    return training_datasets, test_datasets
         
 def get_model(args: Namespace):
     print(f'Initializing Model... \U0001F975')
@@ -110,7 +127,7 @@ def get_logger(args: Namespace) -> Logger:
 
     return logger
 
-def init_env():
+def main():
     try:
 
         start = time.time()
@@ -163,7 +180,7 @@ def init_env():
                 experiment.train(starting)
                 snapshot = experiment.save()
                 logger.save(snapshot)
-                if not (args.dataset == DatasetOptions.GTA):
+                if not (args.training_ds == DatasetOptions.GTA):
                     experiment.eval_train()
                 experiment.test()
             case ExperimentPhase.TRAIN:
@@ -171,7 +188,7 @@ def init_env():
                 snapshot = experiment.save()
                 logger.save(snapshot)
             case ExperimentPhase.TEST:
-                if not (args.dataset == DatasetOptions.GTA):
+                if not (args.training_ds == DatasetOptions.GTA):
                     experiment.eval_train()
                 experiment.test()
             case _:
@@ -184,4 +201,4 @@ def init_env():
         torch.cuda.empty_cache()
 
 if __name__ == "__main__":
-    init_env()
+    main()

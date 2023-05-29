@@ -1,4 +1,3 @@
-from argparse import Namespace
 import copy
 import enum
 import math
@@ -9,15 +8,14 @@ import torch
 
 from torch import Tensor, optim, nn
 from torch.optim.lr_scheduler import _LRScheduler
-from collections import defaultdict
 from torchvision.models.segmentation.deeplabv3 import DeepLabV3
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import wandb
 from datasets.base_dataset import BaseDataset
-from factories.abstract_factories import Experiment, OptimizerFactory, SchedulerFactory
-from fed_setting.snapshot import Snapshot, SnapshotImpl
+from experiment.abs_factories import Experiment
+from experiment.snapshot import Snapshot, SnapshotImpl
 from loggers.logger import BaseDecorator
+from models.abs_factories import OptimizerFactory, SchedulerFactory
 from utils.stream_metrics import StreamSegMetrics
 
 

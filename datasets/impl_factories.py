@@ -1,89 +1,23 @@
-from abc import ABC, abstractmethod
-from argparse import Namespace
 import json
 import os
-from typing import Any, Callable, Dict, Tuple
+from argparse import Namespace
+from typing import List, Optional, Tuple
 from overrides import override
-from torch.optim.lr_scheduler import _LRScheduler, LambdaLR, StepLR
-from torch.optim import SGD, Adam, Optimizer
-from torchvision.datasets import VisionDataset
-from torchvision.models.segmentation.deeplabv3 import _SimpleSegmentationModel
-from centr_setting.centralized_model import CentralizedModel
+from torch.utils.data import DataLoader
+
+import datasets.ss_transforms as sstr
+from config.enums import NormOptions
+from datasets.abs_factories import DatasetFactory
 from datasets.base_dataset import BaseDataset
 from datasets.gta import GTADataset
+from datasets.idda import IDDADataset
 
-from factories.abstract_factories import *
-from config.enums import DatasetOptions, NormOptions
-from factories.abstract_factories import Experiment
-from fed_setting.client import Client
-from fed_setting.server import Server
-from loggers.logger import BaseDecorator
-from models.deeplabv3 import deeplabv3_mobilenetv2
-import datasets.ss_transforms as sstr
-from utils.stream_metrics import StreamSegMetrics
-
-# Implementation of the Factory
-
-class SGDFactory(OptimizerFactory):
-
-    def __init__(self, lr: float, weight_decay: float, momentum:float, model_params_iter) -> None:
-        super().__init__(lr=lr, 
-                         weight_decay=weight_decay, 
-                         model_params=model_params_iter)
-        self.momentum = momentum
-
-    def construct(self) -> Optimizer:
-        return SGD(self.params, 
-                   lr=self.lr, 
-                   momentum=self.momentum,
-                   weight_decay=self.weight_decay,
-                   nesterov=True)
-
-class AdamFactory(OptimizerFactory):
-    def __init__(self, lr: float, weight_decay: float, model_params_iter) -> None:
-        super().__init__(lr=lr, 
-                         weight_decay=weight_decay, 
-                         model_params=model_params_iter)
-        
-    def construct(self) -> Optimizer:
-        return Adam(self.params, lr=self.lr, weight_decay=self.weight_decay)
-    
-        
-class LambdaSchedulerFactory(SchedulerFactory):
-
-    def __init__(self, lr_power: float, optimizer, max_iter: int) -> None:
-        super().__init__(optimizer)
-        self.max_iter = max_iter
-        self.lr_power = lr_power
-
-    def construct(self) -> _LRScheduler:
-        assert self.max_iter is not None, "max_iter necessary for poly LR scheduler"
-        return LambdaLR(self.optimizer, lr_lambda=lambda cur_iter: (1 - cur_iter / self.max_iter) ** self.lr_power)
-    
-class StepLRSchedulerFactory(SchedulerFactory):
-
-    def __init__(self, lr_decay_step: int, lr_decay_factor: float , optimizer) -> None:
-        super().__init__(optimizer)
-        self.lr_decay_step = lr_decay_step
-        self.lr_decay_factor = lr_decay_factor
-
-    def construct(self) -> _LRScheduler:
-        return StepLR(self.optimizer, step_size=self.lr_decay_step, gamma=self.lr_decay_factor)
-    
-class DeepLabV3MobileNetV2Factory(ModelFactory):
-
-    def __init__(self, dataset_type: DatasetOptions) -> None:
-        super().__init__(dataset_type)
-    
-    def construct(self) -> _SimpleSegmentationModel:
-        return deeplabv3_mobilenetv2(num_classes=self.dataset_class_number)
-    
 class IddaDatasetFactory(DatasetFactory):
 
     def __init__(self,
                  framework: str,
-                 train_transforms: sstr.Compose,
-                 test_transforms: sstr.Compose,
+                 train_transforms: Optional[sstr.Compose],
+                 test_transforms: Optional[sstr.Compose],
                  test_dataset: bool = False) -> None:
         super().__init__(root="data/idda", 
                          train_transforms=train_transforms, 
@@ -104,7 +38,6 @@ class IddaDatasetFactory(DatasetFactory):
                                     test_mode=False,
                                     client_name="train"))
             case "federated":
-                if self.test_dataset == False:
                     with open(os.path.join(self.root, 'train.json'), 'r') as f:
                         all_data = json.load(f)
                         for client_id in all_data.keys():
@@ -112,8 +45,9 @@ class IddaDatasetFactory(DatasetFactory):
                                                             list_samples=all_data[client_id], 
                                                             transform=self.train_transforms,
                                                             client_name=client_id))
+        return train_datasets
 
-    @abstractmethod
+    @override
     def construct_test_dataset(self) -> List[BaseDataset]:
         test_datasets= []
         if self.test_dataset == True:
@@ -138,6 +72,10 @@ class IddaDatasetFactory(DatasetFactory):
                                         transform=self.test_transforms,
                                         test_mode=True,
                                         client_name='test_diff_dom'))
+        return test_datasets
+    
+    def set_in_test_mode(self) -> None:
+        self.test_dataset = True
         
     def construct(self) -> Tuple[List[BaseDataset], List[BaseDataset]]:
         train_datasets = []
@@ -200,6 +138,20 @@ class GTADatasetFactory(DatasetFactory):
                                list_samples=all_data,
                                transform=self.train_transforms,
                                client_name="train")], None
+
+    @override    
+    def construct_trainig_dataset(self) -> List[BaseDataset]:
+        with open(os.path.join(self.root, 'train.txt'), 'r') as f:
+            all_data = f.readlines()
+            return [GTADataset(root=self.root,
+                               list_samples=all_data,
+                               transform=self.train_transforms,
+                               client_name="train")]
+
+    @override
+    def construct_test_dataset(self) -> List[BaseDataset]:
+        raise NotImplementedError("Test set for GTA dataset is not implemented")
+        
 class TransformsFactory():
 
     def __init__(self, args: Namespace) -> None:
@@ -228,7 +180,8 @@ class TransformsFactory():
         test_transform = []
 
         if self.use_fda:
-            train_transform.append(sstr.FDA(self.fda_beta))
+            loader = DataLoader(IddaDatasetFactory("centralized", sstr.ToTensor(), None).construct_trainig_dataset()[0])
+            train_transform.append(sstr.FDA(loader, self.fda_beta))
 
         train_transform.append(sstr.RandomHorizontalFlip(0.5))
         
@@ -251,88 +204,3 @@ class TransformsFactory():
         test_transform = sstr.Compose(test_transform)
 
         return train_transform, test_transform
-    
-class FederatedFactory(ExperimentFactory):
-
-    def __init__(self,
-                 args: Namespace, 
-                 train_datasets: List[VisionDataset], 
-                 test_datasets: List[VisionDataset], 
-                 model: _SimpleSegmentationModel, 
-                 metrics: Dict[str, StreamSegMetrics],
-                 reduction: Callable[[Any], Any],
-                 optimizer_factory: OptimizerFactory,
-                 scheduler_factory: SchedulerFactory,
-                 logger: BaseDecorator) -> None:
-        super().__init__(args,
-                       train_datasets, 
-                       test_datasets, 
-                       model, 
-                       metrics,
-                       reduction,
-                       optimizer_factory,
-                       scheduler_factory,
-                       logger=logger)
-        self.n_rounds=args.num_rounds
-        self.n_clients_round=args.clients_per_round
-
-    def construct(self) -> Experiment:
-        train_clients, test_clients = self._gen_clients()
-        server = Server(n_rounds=self.n_rounds,
-                        n_clients_round=self.n_clients_round,
-                        train_clients=train_clients,
-                        test_clients=test_clients,
-                        model=self.model,
-                        metrics=self.metrics, 
-                        optimizer_factory=self.optimizer_factory,
-                        logger=self.logger)
-        return server
-
-    def _gen_clients(self) -> Tuple[List[Client], List[Client]]:
-        clients = [[], []]
-        for i, datasets in enumerate([self.train_datasets, self.test_datasets]):
-            for ds in datasets:
-                clients[i].append(Client(n_epochs=self.n_epochs, 
-                                        batch_size=self.batch_size,
-                                        reduction=self.reduction, 
-                                        dataset=ds,
-                                        model=self.model,
-                                        optimizer_factory=self.optimizer_factory,
-                                        scheduler_factory=self.scheduler_factory,
-                                        test_client=i == 1))
-        return clients[0], clients[1]
-    
-class CentralizedFactory(ExperimentFactory):
-
-    def __init__(self,
-                 args: Namespace, 
-                 train_datasets: List[VisionDataset], 
-                 test_datasets: List[VisionDataset], 
-                 model: _SimpleSegmentationModel, 
-                 metrics: Dict[str, StreamSegMetrics],
-                 reduction: Callable[[Any], Any],
-                 optimizer_factory: OptimizerFactory,
-                 scheduler_factory: SchedulerFactory,
-                 logger: BaseDecorator) -> None:
-        super().__init__(args,
-                       train_datasets, 
-                       test_datasets, 
-                       model, 
-                       metrics,
-                       reduction,
-                       optimizer_factory,
-                       scheduler_factory,
-                       logger=logger)
-
-    def construct(self) -> Experiment:
-        centr_model = CentralizedModel(n_epochs=self.n_epochs, 
-                                       batch_size=self.batch_size,
-                                       reduction=self.reduction,
-                                       train_dataset=self.train_datasets[0], 
-                                       test_datasets=self.test_datasets, 
-                                       model=self.model,
-                                       metrics=self.metrics,
-                                       optimizer_factory=self.optimizer_factory,
-                                       scheduler_factory=self.scheduler_factory,
-                                       logger=self.logger)
-        return centr_model
