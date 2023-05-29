@@ -50,7 +50,7 @@ class GTADataset(BaseDataset):
     @override
     def open_image(self, sample: str) -> Image:
         return Image.open(\
-            os.path.join(self.image_path, f"{sample}.{self.image_extension}"), 'r')
+            os.path.join(self.image_path, f"{sample}.{self.image_extension}"), 'r').convert("RGB")
     
     @override
     def open_label(self, sample: str) -> Image:

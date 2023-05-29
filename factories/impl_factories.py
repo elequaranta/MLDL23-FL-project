@@ -3,6 +3,7 @@ from argparse import Namespace
 import json
 import os
 from typing import Any, Callable, Dict, Tuple
+from overrides import override
 from torch.optim.lr_scheduler import _LRScheduler, LambdaLR, StepLR
 from torch.optim import SGD, Adam, Optimizer
 from torchvision.datasets import VisionDataset
@@ -89,6 +90,54 @@ class IddaDatasetFactory(DatasetFactory):
                          test_transforms=test_transforms)
         self.framework = framework
         self.test_dataset = test_dataset
+
+    @override
+    def construct_trainig_dataset(self) -> List[BaseDataset]:
+        train_datasets = []
+        match self.framework:
+            case "centralized":
+                with open(os.path.join(self.root, 'train.txt'), 'r') as f:
+                    all_data = f.readlines()
+                    train_datasets.append(IDDADataset(root=self.root,
+                                    list_samples=all_data,
+                                    transform=self.train_transforms,
+                                    test_mode=False,
+                                    client_name="train"))
+            case "federated":
+                if self.test_dataset == False:
+                    with open(os.path.join(self.root, 'train.json'), 'r') as f:
+                        all_data = json.load(f)
+                        for client_id in all_data.keys():
+                                train_datasets.append(IDDADataset(root=self.root, 
+                                                            list_samples=all_data[client_id], 
+                                                            transform=self.train_transforms,
+                                                            client_name=client_id))
+
+    @abstractmethod
+    def construct_test_dataset(self) -> List[BaseDataset]:
+        test_datasets= []
+        if self.test_dataset == True:
+            with open(os.path.join(self.root, 'train.txt'), 'r') as f:
+                all_data = f.readlines()
+                test_datasets.append(IDDADataset(root=self.root,
+                                        list_samples=all_data,
+                                        transform=self.test_transforms,
+                                        test_mode=True,
+                                        client_name="eval_train"))
+        with open(os.path.join(self.root, 'test_same_dom.txt'), 'r') as f:
+            test_same_dom_data = f.read().splitlines()
+            test_datasets.append(IDDADataset(root=self.root,
+                                        list_samples=test_same_dom_data, 
+                                        transform=self.test_transforms,
+                                        test_mode=True,
+                                        client_name='test_same_dom'))
+        with open(os.path.join(self.root, 'test_diff_dom.txt'), 'r') as f:
+            test_diff_dom_data = f.read().splitlines()
+            test_datasets.append(IDDADataset(root=self.root,
+                                        list_samples=test_diff_dom_data,
+                                        transform=self.test_transforms,
+                                        test_mode=True,
+                                        client_name='test_diff_dom'))
         
     def construct(self) -> Tuple[List[BaseDataset], List[BaseDataset]]:
         train_datasets = []
@@ -161,6 +210,8 @@ class TransformsFactory():
         self.w_resize = args.w_resize
         self.min_scale = args.min_scale
         self.max_scale = args.max_scale
+        self.use_fda = args.fda
+        self.fda_beta = args.fda_beta
         match args.norm:
             case NormOptions.EROS:
                 self.mean = [0.485, 0.456, 0.406]
@@ -175,6 +226,9 @@ class TransformsFactory():
     def construct(self) -> Tuple[sstr.Compose, sstr.Compose]:
         train_transform = []
         test_transform = []
+
+        if self.use_fda:
+            train_transform.append(sstr.FDA(self.fda_beta))
 
         train_transform.append(sstr.RandomHorizontalFlip(0.5))
         

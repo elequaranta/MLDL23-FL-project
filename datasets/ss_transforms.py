@@ -1,3 +1,4 @@
+from typing import Any, List, Tuple
 import torch
 import torchvision.transforms.functional as F
 import random
@@ -8,6 +9,10 @@ import collections.abc
 from PIL import Image
 import warnings
 import math
+from torch.utils.data import DataLoader
+from torchvision import transforms
+
+from factories.impl_factories import IddaDatasetFactory
 
 _pil_interpolation_to_str = {
     Image.NEAREST: 'PIL.Image.NEAREST',
@@ -744,3 +749,58 @@ class RandomScaleRandomCrop(object):
             return tr(img, lbl)
 
         return tr(img)
+    
+class FDA(object):
+
+    def __init__(self, beta:float) -> None:
+        loader = DataLoader(IddaDatasetFactory("centralized", None, None).construct_trainig_dataset()[0])
+        self.beta = beta
+        self.styles = FDA._get_styles(loader, beta)
+
+    def __call__(self, img: Image, lbl: Image = None) -> Tuple[Image.Image, Image.Image]:
+        img = transforms.ToTensor()(img)
+        fft_src = torch.fft.rfft2(img.clone(), dim=(-2, -1))
+        amp_src, pha_src = self._extract_ampl_phase(fft_src.clone())
+        style_idx = random.randint(0, len(self.styles) - 1)
+        amp_src_ = FDA._low_freq_mutate(amp_src.clone(), self.styles[style_idx].clone(), L=self.beta)
+        real = torch.cos(pha_src.clone()) * amp_src_.clone()
+        imag = torch.sin(pha_src.clone()) * amp_src_.clone()
+        fft_src_ = torch.complex(real=real, imag=imag)
+
+        # get the recomposed image: source content, target style
+        _, _, imgH, imgW = img.size()
+        src_in_trg = torch.fft.irfft2(fft_src_, dim=(-2, -1), s=[imgH, imgW])
+        new_img = transforms.ToPILImage()(src_in_trg).convert("RGB")
+        if lbl is not None:
+            return new_img, lbl
+        return new_img
+    
+    @staticmethod
+    def _get_styles(loader: DataLoader, beta:float) -> List[torch.Tensor]:
+        styles = []
+        for img, _ in loader:
+            fft_img = torch.fft.rfft2(img.clone(), dim=(-2, -1))
+            amp_trg, pha_trg = FDA._extract_ampl_phase(fft_img.clone())
+            styles.append(amp_trg)
+        return styles
+
+    @staticmethod
+    def _extract_ampl_phase(fft_im):
+        # fft_im: size should be b x 3 x h x w
+        fft_amp = torch.abs(fft_im)
+        fft_pha = torch.angle(fft_im)
+        return fft_amp, fft_pha
+
+    @staticmethod
+    def _low_freq_mutate(amp_src, amp_trg, L=0.1):
+        _, _, h, w = amp_src.size()
+        # multiply w by 2 because we have only half the space as rFFT is used
+        w *= 2
+        # multiply by 0.5 to have the maximum b for L=1 like in the paper
+        b = (np.floor(0.5 * np.amin((h, w)) * L)).astype(int)     # get b
+        if b > 0:
+            # When rFFT is used only half of the space needs to be updated
+            # because of the symmetry along the last dimension
+            amp_src[:, :, 0:b, 0:b] = amp_trg[:, :, 0:b, 0:b]      # top left
+            amp_src[:, :, h-b+1:h, 0:b] = amp_trg[:, :, h-b+1:h, 0:b]    # bottom left
+        return amp_src
