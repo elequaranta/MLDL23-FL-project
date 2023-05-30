@@ -163,7 +163,7 @@ class TransformsFactory():
         self.min_scale = args.min_scale
         self.max_scale = args.max_scale
         self.use_fda = args.fda
-        self.fda_beta = args.fda_beta
+        self.fda_L = args.fda_L
         match args.norm:
             case NormOptions.EROS:
                 self.mean = [0.485, 0.456, 0.406]
@@ -180,8 +180,11 @@ class TransformsFactory():
         test_transform = []
 
         if self.use_fda:
-            loader = DataLoader(IddaDatasetFactory("centralized", sstr.ToTensor(), None).construct_trainig_dataset()[0])
-            train_transform.append(sstr.FDA(loader, self.fda_beta))
+            dss = IddaDatasetFactory("federated", sstr.ToTensor(), None).construct_trainig_dataset()
+            loaders = []
+            for ds in dss:
+                loaders.append(DataLoader(ds))
+            train_transform.append(sstr.FDA(loaders, self.fda_L))
 
         train_transform.append(sstr.RandomHorizontalFlip(0.5))
         

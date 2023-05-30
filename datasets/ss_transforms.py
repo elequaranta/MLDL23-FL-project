@@ -750,16 +750,16 @@ class RandomScaleRandomCrop(object):
     
 class FDA(object):
 
-    def __init__(self, loader: DataLoader, beta: float) -> None:
-        self.beta = beta
-        self.styles = FDA._get_styles(loader, beta)
+    def __init__(self, loaders: List[DataLoader], L: float) -> None:
+        self.L = L
+        self.styles = FDA._get_styles(loaders)
 
     def __call__(self, img: Image, lbl: Image = None) -> Tuple[Image.Image, Image.Image]:
         img = transforms.ToTensor()(img)
         fft_src = torch.fft.rfft2(img.clone(), dim=(-2, -1))
         amp_src, pha_src = self._extract_ampl_phase(fft_src.clone())
         style_idx = random.randint(0, len(self.styles) - 1)
-        amp_src_ = FDA._low_freq_mutate(amp_src.clone(), self.styles[style_idx].clone(), L=self.beta)
+        amp_src_ = FDA._low_freq_mutate(amp_src.clone(), self.styles[style_idx].clone(), L=self.L)
         real = torch.cos(pha_src.clone()) * amp_src_.clone()
         imag = torch.sin(pha_src.clone()) * amp_src_.clone()
         fft_src_ = torch.complex(real=real, imag=imag)
@@ -773,12 +773,15 @@ class FDA(object):
         return new_img
     
     @staticmethod
-    def _get_styles(loader: DataLoader, beta:float) -> List[torch.Tensor]:
+    def _get_styles(loaders: DataLoader) -> List[torch.Tensor]:
         styles = []
-        for img, _ in loader:
-            fft_img = torch.fft.rfft2(img.clone(), dim=(-2, -1))
-            amp_trg, pha_trg = FDA._extract_ampl_phase(fft_img.clone())
-            styles.append(amp_trg)
+        for loader in loaders:
+            amp_trg_sum = torch.zeros(size=(1, 3, 1080, 961))
+            for img, _ in loader:
+                fft_img = torch.fft.rfft2(img.clone(), dim=(-2, -1))
+                amp_trg, pha_trg = FDA._extract_ampl_phase(fft_img.clone())
+                amp_trg_sum = amp_trg_sum.add(amp_trg)
+            styles.append(amp_trg_sum / len(loader))
         return styles
 
     @staticmethod

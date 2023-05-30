@@ -64,7 +64,7 @@ def get_parser():
     transforms_args.add_argument('--rsrc_transform', action='store_true', help='whether to use random scale random crop')
     transforms_args.add_argument('--norm', type=NormOptions, default=NormOptions.EROS, choices=list(NormOptions), help='whether to use cts normalization or eros normalization')
     transforms_args.add_argument('--fda', action='store_true', help='performe fda with styles from IDDA dataset')
-    transforms_args.add_argument('--fda_beta', type=float, default=0.5, help='define the beta to use in fda')
+    transforms_args.add_argument('--fda_L', type=float, default=0.5, help='define the L to use in fda (see paper implementation for reference)')
 
     # Logging options
     logging_args = parser.add_argument_group("Options for logging")
