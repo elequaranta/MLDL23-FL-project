@@ -1,4 +1,6 @@
-data/*
+data/femnist/*
+data/idda/*
+data/gta/*
 __pycache__
 .vscode
 mldl23fl_copy.yml

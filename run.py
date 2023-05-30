@@ -76,10 +76,12 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
         
     match args.test_ds:
         case DatasetOptions.IDDA:
-            test_datasets.append(idda_factory.construct_test_dataset())
-        case DatasetOptions.GTA:
-            idda_factory.set_in_test_mode()
-            test_datasets.append(idda_factory.construct_test_dataset())
+            match args.training_ds:
+                case DatasetOptions.IDDA:
+                    test_datasets.append(idda_factory.construct_test_dataset())
+                case DatasetOptions.GTA:
+                    idda_factory.set_in_test_mode()
+                    test_datasets.append(idda_factory.construct_test_dataset())
         case _:
             raise NotImplementedError("The dataset chosen for training is not implemented")
     return training_datasets, test_datasets
