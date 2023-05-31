@@ -57,7 +57,7 @@ class IddaDatasetFactory(DatasetFactory):
                                         list_samples=all_data,
                                         transform=self.test_transforms,
                                         test_mode=True,
-                                        client_name="eval_train"))
+                                        client_name="target_train"))
         with open(os.path.join(self.root, 'test_same_dom.txt'), 'r') as f:
             test_same_dom_data = f.read().splitlines()
             test_datasets.append(IDDADataset(root=self.root,
@@ -76,68 +76,13 @@ class IddaDatasetFactory(DatasetFactory):
     
     def set_in_test_mode(self) -> None:
         self.test_dataset = True
-        
-    def construct(self) -> Tuple[List[BaseDataset], List[BaseDataset]]:
-        train_datasets = []
-        test_datasets = []
-        
-        match self.framework:
-            case "centralized":
-                with open(os.path.join(self.root, 'train.txt'), 'r') as f:
-                    all_data = f.readlines()
-                    if self.test_dataset == False:
-                        train_datasets.append(IDDADataset(root=self.root,
-                                    list_samples=all_data,
-                                    transform=self.train_transforms,
-                                    test_mode=False,
-                                    client_name="train"))
-                    else:
-                        test_datasets.append(IDDADataset(root=self.root,
-                                    list_samples=all_data,
-                                    transform=self.test_transforms,
-                                    test_mode=True,
-                                    client_name="eval_train"))
 
-            case "federated":
-                if self.test_dataset == False:
-                    with open(os.path.join(self.root, 'train.json'), 'r') as f:
-                        all_data = json.load(f)
-                        for client_id in all_data.keys():
-                                train_datasets.append(IDDADataset(root=self.root, 
-                                                            list_samples=all_data[client_id], 
-                                                            transform=self.train_transforms,
-                                                            client_name=client_id))
-                
-        with open(os.path.join(self.root, 'test_same_dom.txt'), 'r') as f:
-            test_same_dom_data = f.read().splitlines()
-            test_datasets.append(IDDADataset(root=self.root,
-                                        list_samples=test_same_dom_data, 
-                                        transform=self.test_transforms,
-                                        test_mode=True,
-                                        client_name='test_same_dom'))
-        with open(os.path.join(self.root, 'test_diff_dom.txt'), 'r') as f:
-            test_diff_dom_data = f.read().splitlines()
-            test_datasets.append(IDDADataset(root=self.root,
-                                        list_samples=test_diff_dom_data,
-                                        transform=self.test_transforms,
-                                        test_mode=True,
-                                        client_name='test_diff_dom'))
-            
-        return train_datasets, test_datasets
     
 class GTADatasetFactory(DatasetFactory):
 
     def __init__(self,
                  train_transforms: sstr.Compose,) -> None:
         super().__init__("data/gta", train_transforms, None)
-
-    def construct(self) -> Tuple[List[BaseDataset], List[BaseDataset]]:
-        with open(os.path.join(self.root, 'train.txt'), 'r') as f:
-            all_data = f.readlines()
-            return [GTADataset(root=self.root,
-                               list_samples=all_data,
-                               transform=self.train_transforms,
-                               client_name="train")], None
 
     @override    
     def construct_trainig_dataset(self) -> List[BaseDataset]:

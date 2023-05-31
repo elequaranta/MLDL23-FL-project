@@ -123,7 +123,7 @@ class CentralizedModel(Experiment):
     def eval_train(self):
         self.model.to(self.device)
         self.model.eval()
-        metric = self.metrics["eval_train"]
+        metric = self.metrics["source_train"]
         for i, (images, labels) in enumerate(self.test_train_loader):
             images = images.to(self.device, dtype=torch.float32)
             labels = labels.to(self.device, dtype=torch.long)
@@ -131,7 +131,7 @@ class CentralizedModel(Experiment):
             self.update_metric(metric, outputs["out"], labels)
         results = metric.get_results()
         self.logger.save_results(results)
-        self.logger.summary({f"eval_train mIoU" : results["Mean IoU"]})
+        self.logger.summary({f"source_train mIoU" : results["Mean IoU"]})
 
     @override
     def test(self):
@@ -139,7 +139,6 @@ class CentralizedModel(Experiment):
         self.model.eval()
         
         with torch.no_grad():
-            #for loader in [self.test_same_dom_loader, self.test_diff_dom_loader]:
             for loader in self.test_loaders:
                 metric = self.metrics[loader.dataset.name]
                 for i, (images, labels) in enumerate(loader):

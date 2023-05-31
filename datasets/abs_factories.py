@@ -15,10 +15,6 @@ class DatasetFactory(ABC):
         self.test_transforms = test_transforms
 
     @abstractmethod
-    def construct(self) -> List[BaseDataset]:
-        pass
-
-    @abstractmethod
     def construct_trainig_dataset(self) -> List[BaseDataset]:
         pass
 

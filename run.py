@@ -41,7 +41,8 @@ def set_metrics(args, ds: bdt.BaseDataset):
     num_classes = ds.get_classes_number()
     if args.model == ModelOptions.DEEPLABv3_MOBILENETv2:
         metrics = {
-            'eval_train': StreamSegMetrics(num_classes, 'eval_train'),
+            'source_train': StreamSegMetrics(num_classes, 'source_train'),
+            'target_train': StreamSegMetrics(num_classes, 'target_train'),
             'test_same_dom': StreamSegMetrics(num_classes, 'test_same_dom'),
             'test_diff_dom': StreamSegMetrics(num_classes, 'test_diff_dom')
         }

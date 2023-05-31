@@ -41,7 +41,8 @@ class Server(Experiment):
         self.rounds_trained = 0
         self.client_metrics = metrics
         self.aggregated_metrics = {
-            "eval_train": AggregatedFederatedMetrics("eval_train"),
+            "source_train": AggregatedFederatedMetrics("source_train"),
+            "target_train": AggregatedFederatedMetrics("target_train"),
             "test_same_dom": AggregatedFederatedMetrics("test_same_dom"),
             "test_diff_dom": AggregatedFederatedMetrics("test_diff_dom"),
         }
@@ -149,14 +150,14 @@ class Server(Experiment):
         """
         This method handles the evaluation on the train clients
         """
-        metric = self.client_metrics["eval_train"]
-        agr_metric = self.aggregated_metrics["eval_train"]
+        metric = self.client_metrics["source_train"]
+        agr_metric = self.aggregated_metrics["source_train"]
         for client in self.train_clients:
             metric.reset()
             client.test(metric)
             agr_metric.update(metric, client.name)
         results = agr_metric.calculate_results()
-        self.logger.summary({"eval_train":results})
+        self.logger.summary({"source_train":results})
         print(agr_metric)
 
     @override
