@@ -4,6 +4,7 @@ from argparse import Namespace
 from typing import List, Optional, Tuple
 from overrides import override
 from torch.utils.data import DataLoader
+from datasets.sl_idda import IDDADatasetSelfLearning
 
 import datasets.ss_transforms as sstr
 from config.enums import NormOptions
@@ -96,6 +97,35 @@ class GTADatasetFactory(DatasetFactory):
     @override
     def construct_test_dataset(self) -> List[BaseDataset]:
         raise NotImplementedError("Test set for GTA dataset is not implemented")
+    
+class IddaDatasetSelfLearningFactory(DatasetFactory):
+
+    def __init__(self, 
+                 train_transforms: Optional[sstr.Compose],
+                 test_transforms: Optional[sstr.Compose]) -> None:
+        super().__init__(root="data/idda", 
+                         train_transforms=train_transforms, 
+                         test_transforms=test_transforms)
+    
+    @override
+    def construct_trainig_dataset(self) -> List[BaseDataset]:
+        train_datasets = []
+        match self.framework:
+            case "centralized":
+                raise NotImplementedError("NO")
+            case "federated":
+                    with open(os.path.join(self.root, 'train.json'), 'r') as f:
+                        all_data = json.load(f)
+                        for client_id in all_data.keys():
+                                train_datasets.append(IDDADatasetSelfLearning(root=self.root, 
+                                                            list_samples=all_data[client_id], 
+                                                            transform=self.train_transforms,
+                                                            client_name=client_id))
+        return train_datasets
+    
+    @override
+    def construct_test_dataset(self) -> List[BaseDataset]:
+        raise NotImplementedError("Test set for Idda Self Learning dataset is not implemented")
         
 class TransformsFactory():
 

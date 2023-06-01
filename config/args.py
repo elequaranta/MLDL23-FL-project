@@ -35,6 +35,11 @@ def get_parser():
     federated_args.add_argument('--print_test_interval', type=int, default=10, help='client print test interval')
     federated_args.add_argument('--eval_interval', type=int, default=10, help='eval interval')
     federated_args.add_argument('--test_interval', type=int, default=10, help='test interval')
+
+    self_learning_parser = subparser.add_parser("self_learning", parents=[federated_parser], help="Use federated training for Semantic Segmentation")
+    self_learning_parser.add_argument('--update_teach', type=int, default=-1, help='number of rounds between teacher model\'s update')
+    self_learning_parser.add_argument('--conf_threshold', type=float, default=0.5, help='confidence threshold while generating self labels')
+
     
     # Learning options
     learning_args = parser.add_argument_group("Options for learning")

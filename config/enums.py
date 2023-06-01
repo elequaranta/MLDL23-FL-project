@@ -3,6 +3,7 @@ import enum
 class DatasetOptions(str, enum.Enum):
     IDDA = "idda"
     GTA = "gta"
+    IDDA_SELF = "idda_sl"
 
 class ModelOptions(str, enum.Enum):
     DEEPLABv3_MOBILENETv2 = "deeplabv3_mobilenetv2"
@@ -18,6 +19,7 @@ class SchedulerOptions(str, enum.Enum):
 class ProjectNameOptions(str, enum.Enum):
     CENTR = "centralized-training"
     FED = "federated-training"
+    SL = "self-learning"
     DEBUG = "debug"
 
 class NormOptions(str, enum.Enum):

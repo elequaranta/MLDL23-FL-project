@@ -15,8 +15,8 @@ import datasets.base_dataset as bdt
 import datasets.ss_transforms as sstr
 from config.enums import DatasetOptions, ExperimentPhase, ModelOptions, OptimizerOptions, SchedulerOptions
 from config.args import get_parser
-from datasets.impl_factories import GTADatasetFactory, IddaDatasetFactory, TransformsFactory
-from experiment.impl_factories import CentralizedFactory, FederatedFactory
+from datasets.impl_factories import GTADatasetFactory, IddaDatasetFactory, IddaDatasetSelfLearningFactory, TransformsFactory
+from experiment.impl_factories import CentralizedFactory, FederatedFactory, FederatedSelfLearning
 from models.abs_factories import OptimizerFactory, SchedulerFactory
 from models.impl_factories import AdamFactory, \
                                   DeepLabV3MobileNetV2Factory, \
@@ -36,15 +36,15 @@ def set_seed(random_seed):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-def set_metrics(args, ds: bdt.BaseDataset):
-    #num_classes = get_dataset_num_classes(args.dataset)
-    num_classes = ds.get_classes_number()
+def set_metrics(args, train_ds: bdt.BaseDataset, targer_ds: bdt.BaseDataset):
+    num_classes_train = train_ds.get_classes_number()
+    num_classes_test = targer_ds.get_classes_number()
     if args.model == ModelOptions.DEEPLABv3_MOBILENETv2:
         metrics = {
-            'source_train': StreamSegMetrics(num_classes, 'source_train'),
-            'target_train': StreamSegMetrics(num_classes, 'target_train'),
-            'test_same_dom': StreamSegMetrics(num_classes, 'test_same_dom'),
-            'test_diff_dom': StreamSegMetrics(num_classes, 'test_diff_dom')
+            'source_train': StreamSegMetrics(num_classes_train, 'source_train'),
+            'target_train': StreamSegMetrics(num_classes_test, 'target_train'),
+            'test_same_dom': StreamSegMetrics(num_classes_test, 'test_same_dom'),
+            'test_diff_dom': StreamSegMetrics(num_classes_test, 'test_diff_dom')
         }
     else:
         raise NotImplementedError
@@ -63,15 +63,18 @@ def get_transforms(args: Namespace) -> Tuple[sstr.Compose, sstr.Compose]:
 def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transforms: sstr.Compose) \
     -> Tuple[List[bdt.BaseDataset], List[bdt.BaseDataset]]:
     print('Generating Datasets... \U0001F975')
-    training_datasets = []
-    test_datasets = []
+    training_datasets = None
+    test_datasets = None
     idda_factory = IddaDatasetFactory(args.framework, train_transforms, test_transforms)
     gta_factory = GTADatasetFactory(train_transforms)
+    idda_sl_factory = IddaDatasetSelfLearningFactory(train_transforms, None)
     match args.training_ds:
         case DatasetOptions.IDDA:
-            training_datasets.append(idda_factory.construct_trainig_dataset()) 
+            training_datasets = idda_factory.construct_trainig_dataset()
         case DatasetOptions.GTA:
-            training_datasets.append(gta_factory.construct_trainig_dataset())
+            training_datasets = gta_factory.construct_trainig_dataset()
+        case DatasetOptions.IDDA_SELF:
+            training_datasets = idda_sl_factory.construct_trainig_dataset()
         case _:
             raise NotImplementedError("The dataset chosen for training is not implemented")
         
@@ -79,10 +82,10 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
         case DatasetOptions.IDDA:
             match args.training_ds:
                 case DatasetOptions.IDDA:
-                    test_datasets.append(idda_factory.construct_test_dataset())
-                case DatasetOptions.GTA:
+                    test_datasets = idda_factory.construct_test_dataset()
+                case DatasetOptions.GTA | DatasetOptions.IDDA_SELF:
                     idda_factory.set_in_test_mode()
-                    test_datasets.append(idda_factory.construct_test_dataset())
+                    test_datasets = idda_factory.construct_test_dataset()
         case _:
             raise NotImplementedError("The dataset chosen for training is not implemented")
     return training_datasets, test_datasets
@@ -91,7 +94,7 @@ def get_model(args: Namespace):
     print(f'Initializing Model... \U0001F975')
     match args.model:
         case ModelOptions.DEEPLABv3_MOBILENETv2:
-            return DeepLabV3MobileNetV2Factory(dataset_type=args.dataset).construct()
+            return DeepLabV3MobileNetV2Factory(dataset_type=args.training_ds).construct()
         case _:
             raise NotImplementedError("The model chosen is not implemented")
         
@@ -146,7 +149,7 @@ def main():
             reduction = MeanReduction()
         optimizer, optimizer_factory = get_optimizer(args, model)
         scheduler_factory = get_scheduler_factory(args, len(train_datasets[0]), optimizer)
-        metrics = set_metrics(args, test_datasets[0])
+        metrics = set_metrics(args, train_datasets[0], test_datasets[0])
         
         match args.framework:
             case 'federated':
@@ -169,6 +172,16 @@ def main():
                                  optimizer_factory=optimizer_factory, 
                                  scheduler_factory=scheduler_factory,
                                  logger=logger).construct()
+            case 'self_learning':
+                experiment = FederatedSelfLearning(args=args, 
+                                 train_datasets=train_datasets, 
+                                 test_datasets=test_datasets, 
+                                 model=model, 
+                                 metrics=metrics, 
+                                 reduction=reduction, 
+                                 optimizer_factory=optimizer_factory, 
+                                 scheduler_factory=scheduler_factory,
+                                 logger=logger)
             case _:
                 raise NotImplementedError("The framework chosen is not implemented")
 
@@ -183,16 +196,16 @@ def main():
                 experiment.train(starting)
                 snapshot = experiment.save()
                 logger.save(snapshot)
-                if not (args.training_ds == DatasetOptions.GTA):
-                    experiment.eval_train()
+                #if not (args.training_ds == DatasetOptions.GTA):
+                experiment.eval_train()
                 experiment.test()
             case ExperimentPhase.TRAIN:
                 experiment.train(starting)
                 snapshot = experiment.save()
                 logger.save(snapshot)
             case ExperimentPhase.TEST:
-                if not (args.training_ds == DatasetOptions.GTA):
-                    experiment.eval_train()
+                #if not (args.training_ds == DatasetOptions.GTA):
+                experiment.eval_train()
                 experiment.test()
             case _:
                 raise NotImplementedError("The phase chosen is not implemented")

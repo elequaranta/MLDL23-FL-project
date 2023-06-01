@@ -131,7 +131,8 @@ class Server(Experiment):
             for k, v in losses.items():
                 self.logger.log({f"{k}-loss": v["loss"], "step": r+1})
 
-            if (self.rounds_trained % n_rounds_between_snap == 0):
+            if r+1 % n_rounds_between_snap == 0:
+                self.rounds_trained = r+1
                 self.logger.save(self.save())
 
 

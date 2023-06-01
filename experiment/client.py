@@ -25,6 +25,7 @@ class Client:
         self.dataset = dataset
         self._name = self.dataset.name
         self.model = model
+        self.batch_size = batch_size
         if not test_client:
             self.data_loader = DataLoader(self.dataset, batch_size=batch_size, shuffle=True, drop_last=True)
         else:

@@ -11,6 +11,7 @@ import warnings
 import math
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from tqdm import tqdm
 
 _pil_interpolation_to_str = {
     Image.NEAREST: 'PIL.Image.NEAREST',
@@ -775,7 +776,7 @@ class FDA(object):
     @staticmethod
     def _get_styles(loaders: DataLoader) -> List[torch.Tensor]:
         styles = []
-        for loader in loaders:
+        for loader in tqdm(loaders):
             amp_trg_sum = torch.zeros(size=(1, 3, 1080, 961))
             for img, _ in loader:
                 fft_img = torch.fft.rfft2(img.clone(), dim=(-2, -1))
