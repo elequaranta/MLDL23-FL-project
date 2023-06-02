@@ -158,6 +158,7 @@ class Server(Experiment):
             client.test(metric)
             agr_metric.update(metric, client.name)
         results = agr_metric.calculate_results()
+        self.logger.save_results(results)
         self.logger.summary({"source_train":results})
         print(agr_metric)
 
@@ -176,6 +177,7 @@ class Server(Experiment):
         for metric_key in test_metrics_keys:
             test_metric = self.aggregated_metrics[metric_key]
             result = test_metric.calculate_results()
+            self.logger.save_results(result)
             self.logger.summary({metric_key: result})
             print(test_metric)
 

@@ -1,5 +1,5 @@
 
-from copy import copy
+import copy
 import enum
 import itertools
 import math
@@ -9,7 +9,7 @@ from torch import Tensor
 from torch.nn import Threshold
 from torchvision.models.segmentation.deeplabv3 import DeepLabV3
 from tqdm import tqdm
-from datasets.base_dataset import BaseDataset
+from torch.utils.data import DataLoader
 
 from experiment.client import Client
 from experiment.server import Server
@@ -82,19 +82,24 @@ class ServerSelfLearning(Server):
         if round % self.n_round_teacher_model == 0:
             self.teacher_model.load_state_dict(self.model_params_dict)
             for client in clients:
-                labels = [
-                    self.get_label_from_pred(self.teacher_model(img)["out"]) 
-                    for img, _ in client.dataset]
+                # labels = [
+                #     self.get_label_from_pred(self.teacher_model(img)["out"]) 
+                #     for img, _ in client.dataset]
+                labels = []
+                dl = DataLoader(client.dataset, batch_size=5, shuffle=False)
+                for img, _ in dl:
+                    out = self.teacher_model(img)
+                    lbl = self.get_label_from_pred(out["out"])
+                    labels.extend(lbl)
                 client.dataset.update_labels(labels)
-                # for img, _ in client.dataset:
-                #     out = self.teacher_model(img)
-                #     lbl = self.get_label_from_pred(out["out"])
-                #     labels.append(lbl)
+                
                     
 
-    def get_label_from_pred(self, prediction) -> Tensor:
-        class_pred = prediction.max(dim=0)
-        return self.threshold(class_pred)
+    def get_label_from_pred(self, prediction: Tensor) -> Tensor:
+        values, idx_class_pred = prediction.max(dim=1)
+        values = self.threshold(values)
+        idx_class_pred[values == -1] = -1
+        return [idx_class_pred[i, :, :] for i in range(idx_class_pred.size(dim=0))]
 
     @override
     def save(self) -> Snapshot:

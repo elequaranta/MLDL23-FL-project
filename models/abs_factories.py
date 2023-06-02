@@ -17,6 +17,8 @@ class ModelFactory(ABC):
                 self.dataset_class_number = IDDADataset.get_classes_number()
             case DatasetOptions.GTA:
                 self.dataset_class_number = GTADataset.get_classes_number()
+            case DatasetOptions.IDDA_SELF:
+                self.dataset_class_number = GTADataset.get_classes_number()
             case _:
                 raise NotImplementedError("The dataset requested is not implemented in ModelFactory")
     

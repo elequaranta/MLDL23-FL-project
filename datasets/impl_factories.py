@@ -46,6 +46,8 @@ class IddaDatasetFactory(DatasetFactory):
                                                             list_samples=all_data[client_id], 
                                                             transform=self.train_transforms,
                                                             client_name=client_id))
+            case _:
+                raise NotImplementedError(f"IDDA training dataset is not implemented for {self.framework}")
         return train_datasets
 
     @override
@@ -100,20 +102,22 @@ class GTADatasetFactory(DatasetFactory):
     
 class IddaDatasetSelfLearningFactory(DatasetFactory):
 
-    def __init__(self, 
+    def __init__(self,
+                 framework: str,
                  train_transforms: Optional[sstr.Compose],
                  test_transforms: Optional[sstr.Compose]) -> None:
         super().__init__(root="data/idda", 
                          train_transforms=train_transforms, 
                          test_transforms=test_transforms)
+        self.framework = framework
     
     @override
     def construct_trainig_dataset(self) -> List[BaseDataset]:
         train_datasets = []
         match self.framework:
-            case "centralized":
+            case "centralized" | "federated":
                 raise NotImplementedError("NO")
-            case "federated":
+            case "self_learning":
                     with open(os.path.join(self.root, 'train.json'), 'r') as f:
                         all_data = json.load(f)
                         for client_id in all_data.keys():

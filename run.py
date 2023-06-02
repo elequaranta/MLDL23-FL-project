@@ -16,7 +16,7 @@ import datasets.ss_transforms as sstr
 from config.enums import DatasetOptions, ExperimentPhase, ModelOptions, OptimizerOptions, SchedulerOptions
 from config.args import get_parser
 from datasets.impl_factories import GTADatasetFactory, IddaDatasetFactory, IddaDatasetSelfLearningFactory, TransformsFactory
-from experiment.impl_factories import CentralizedFactory, FederatedFactory, FederatedSelfLearning
+from experiment.impl_factories import CentralizedFactory, FederatedFactory, FederatedSelfLearningFactory
 from models.abs_factories import OptimizerFactory, SchedulerFactory
 from models.impl_factories import AdamFactory, \
                                   DeepLabV3MobileNetV2Factory, \
@@ -67,7 +67,7 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
     test_datasets = None
     idda_factory = IddaDatasetFactory(args.framework, train_transforms, test_transforms)
     gta_factory = GTADatasetFactory(train_transforms)
-    idda_sl_factory = IddaDatasetSelfLearningFactory(train_transforms, None)
+    idda_sl_factory = IddaDatasetSelfLearningFactory(args.framework, train_transforms, None)
     match args.training_ds:
         case DatasetOptions.IDDA:
             training_datasets = idda_factory.construct_trainig_dataset()
@@ -173,7 +173,7 @@ def main():
                                  scheduler_factory=scheduler_factory,
                                  logger=logger).construct()
             case 'self_learning':
-                experiment = FederatedSelfLearning(args=args, 
+                experiment = FederatedSelfLearningFactory(args=args, 
                                  train_datasets=train_datasets, 
                                  test_datasets=test_datasets, 
                                  model=model, 
@@ -181,7 +181,7 @@ def main():
                                  reduction=reduction, 
                                  optimizer_factory=optimizer_factory, 
                                  scheduler_factory=scheduler_factory,
-                                 logger=logger)
+                                 logger=logger).construct()
             case _:
                 raise NotImplementedError("The framework chosen is not implemented")
 

@@ -64,7 +64,7 @@ class FederatedFactory(ExperimentFactory):
                                         test_client=i == 1))
         return clients[0], clients[1]
     
-class FederatedSelfLearning(ExperimentFactory):
+class FederatedSelfLearningFactory(ExperimentFactory):
 
     def __init__(self, 
                  args: Namespace, 
