@@ -19,6 +19,7 @@ class SchedulerOptions(str, enum.Enum):
 class ProjectNameOptions(str, enum.Enum):
     CENTR = "centralized-training"
     FED = "federated-training"
+    FDA = "fda-training"
     SL = "self-learning"
     DEBUG = "debug"
 
