@@ -766,7 +766,7 @@ class FDA(object):
         fft_src_ = torch.complex(real=real, imag=imag)
 
         # get the recomposed image: source content, target style
-        _, _, imgH, imgW = img.size()
+        _, imgH, imgW = img.size()
         src_in_trg = torch.fft.irfft2(fft_src_, dim=(-2, -1), s=[imgH, imgW])
         new_img = transforms.ToPILImage()(src_in_trg).convert("RGB")
         if lbl is not None:
@@ -793,8 +793,8 @@ class FDA(object):
         return fft_amp, fft_pha
 
     @staticmethod
-    def _low_freq_mutate(amp_src, amp_trg, L=0.1):
-        _, _, h, w = amp_src.size()
+    def _low_freq_mutate(amp_src, amp_trg: torch.Tensor, L=0.1):
+        _, h, w = amp_src.size()
         # multiply w by 2 because we have only half the space as rFFT is used
         w *= 2
         # multiply by 0.5 to have the maximum b for L=1 like in the paper
@@ -802,6 +802,6 @@ class FDA(object):
         if b > 0:
             # When rFFT is used only half of the space needs to be updated
             # because of the symmetry along the last dimension
-            amp_src[:, :, 0:b, 0:b] = amp_trg[:, :, 0:b, 0:b]      # top left
-            amp_src[:, :, h-b+1:h, 0:b] = amp_trg[:, :, h-b+1:h, 0:b]    # bottom left
+            amp_src[:, 0:b, 0:b] = amp_trg.squeeze()[:, 0:b, 0:b]      # top left
+            amp_src[:, h-b+1:h, 0:b] = amp_trg.squeeze()[:, h-b+1:h, 0:b]    # bottom left
         return amp_src
