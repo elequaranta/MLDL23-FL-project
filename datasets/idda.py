@@ -55,5 +55,5 @@ class IDDADataset(BaseDataset):
 
     @staticmethod
     @override
-    def convert_class() -> Callable[[torch.Tensor], ArrayLike]:
-        return lambda x: x
+    def convert_class(class_prediction: ArrayLike) -> ArrayLike:
+        return class_prediction

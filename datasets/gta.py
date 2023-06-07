@@ -1,6 +1,6 @@
-import os
 from PIL import Image
 import numpy as np
+import os
 from torch import from_numpy
 from overrides import override
 import torch
@@ -13,6 +13,52 @@ from typing import Callable, Dict, List
 
 class GTADataset(BaseDataset):
 
+    class_map = {
+        0: 13, # ego_vehicle : vehicle
+        1: 0, # road
+        2: 1, # sidewalk
+        3: 2, # building
+        4: 3, # wall
+        5: 4, # fence
+        6: 5, # pole
+        7: 5, # poleGroup: pole
+        8: 6, # traffic light
+        9: 7, # traffic sign
+        10: 8, # vegetation
+        11: 9, # terrain
+        12: 10, # sky
+        13: 11, # person
+        14: 12, # rider
+        15: 13, # car : vehicle
+        16: 13, # truck : vehicle
+        17: 13, # bus : vehicle
+        18: 14, # motorcycle
+        19: 15, # bicycle
+    }
+
+    label2train = {
+        1: 0, # ego_vehicle : vehicle
+        7: 1, # road
+        8: 2, # sidewalk
+        11: 3, # building
+        12: 4, # wall
+        13: 5, # fence
+        17: 6, # pole
+        18: 7, # poleGroup: pole
+        19: 8, # traffic light
+        20: 9, # traffic sign
+        21: 10, # vegetation
+        22: 11, # terrain
+        23: 12, # sky
+        24: 13, # person
+        25: 14, # rider
+        26: 15, # car : vehicle
+        27: 16, # truck : vehicle
+        28: 17, # bus : vehicle
+        32: 18, # motorcycle
+        33: 19, # bicycle
+    }
+ 
     # Some of the RGB value of every class of the palette (the sum are unique)
     PALETTE = np.array([320, #0
                         511, #1
@@ -55,27 +101,25 @@ class GTADataset(BaseDataset):
     @override
     def open_label(self, sample: str) -> Image:
         return Image.open(\
-            os.path.join(self.label_path, f"{sample}.{self.mask_extension}"), 'r').convert("RGB")
+            os.path.join(self.label_path, f"{sample}.{self.mask_extension}"), 'r')#.convert("L")
 
     @staticmethod
     @override
     def get_classes_number() -> int:
-        return 19
+        return 20
     
     @staticmethod
     @override
     def get_mapping() -> Callable[[torch.Tensor], torch.Tensor]:
-        mapping = np.ones((765,), dtype=np.int64) * -1
-        for i, v in enumerate(GTADataset.PALETTE):
-            mapping[v] = i
-        #return lambda x: from_numpy(mapping[x])
-        return lambda x: from_numpy(mapping[x.sum(dim=2)])
+        mapping = -1 * np.ones(shape=(256), dtype=np.uint8)
+        for k, v in GTADataset.label2train.items():
+            mapping[k] = v
+        return lambda x: from_numpy(mapping[x])
     
     @staticmethod
     @override
-    def convert_class() -> Callable[[torch.Tensor], ArrayLike]:
-        # map class from gta info.json + class map ida
-        #map_class = np.array([0,1,2,3,4,5,6,7,8,9,10,11,12,13,13,13,13,14,15])
-        # map class from project instruction
-        map_class = np.array([13,0,1,2,3,4,5,6,7,8,9,10,11,12,13,13,13,14,15])
-        return lambda x: map_class[x]
+    def convert_class(class_prediction: ArrayLike) -> ArrayLike:
+        out = -1 * np.ones(class_prediction.shape, dtype=np.uint8)
+        for id, label in GTADataset.class_map.items():
+            out[class_prediction == id] = int(label)
+        return out
