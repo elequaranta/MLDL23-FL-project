@@ -57,11 +57,11 @@ class CentralizedModel(Experiment):
         self.scheduler = scheduler_factory.construct()
     
     # @staticmethod
-    def update_metric(self, metric, outputs, labels):
+    def update_metric(self, metric, outputs, labels, convert_class):
         _, prediction = outputs.max(dim=1)
         labels = labels.cpu().numpy()
-        prediction = prediction.cpu()
-        prediction = np.array(self.train_dataset.convert_class()(prediction))
+        prediction = prediction.cpu().numpy()
+        prediction = convert_class(prediction)
         metric.update(labels, prediction)
 
     def run_epoch(self, cur_epoch: int, optimizer: optim.Optimizer, scheduler: _LRScheduler = None):
@@ -128,7 +128,7 @@ class CentralizedModel(Experiment):
             images = images.to(self.device, dtype=torch.float32)
             labels = labels.to(self.device, dtype=torch.long)
             outputs = self.model(images)
-            self.update_metric(metric, outputs["out"], labels)
+            self.update_metric(metric, outputs["out"], labels, convert_class=lambda x: x)
         results = metric.get_results()
         self.logger.save_results(results)
         self.logger.summary({f"source_train mIoU" : results["Mean IoU"]})
@@ -145,7 +145,10 @@ class CentralizedModel(Experiment):
                     images = images.to(self.device, dtype=torch.float32)
                     labels = labels.to(self.device, dtype=torch.long)
                     outputs = self.model(images)
-                    self.update_metric(metric, outputs["out"], labels)
+                    self.update_metric(metric, 
+                                       outputs["out"], 
+                                       labels, 
+                                       convert_class=self.train_dataset.convert_class)
                 results = metric.get_results()
                 self.logger.save_results(results)
                 self.logger.summary({f"{loader.dataset.name} mIoU" : results["Mean IoU"]})
@@ -166,8 +169,23 @@ class CentralizedModel(Experiment):
         state = snapshot.get_state()
         self.model.load_state_dict(state[CentralizedModel.CentralizedModelKey.MODEL_DICT])
         self.optimizer.load_state_dict(state[CentralizedModel.CentralizedModelKey.OPTIMIZER_DICT])
+        self.optimizer_to(self.optimizer, self.device)
         self.scheduler.load_state_dict(state[CentralizedModel.CentralizedModelKey.SCHEDULER_DICT])
         return state[CentralizedModel.CentralizedModelKey.EPOCHS]
+    
+    def optimizer_to(self, optim, device):
+      for param in optim.state.values():
+          # Not sure there are any global tensors in the state dict
+          if isinstance(param, torch.Tensor):
+              param.data = param.data.to(device)
+              if param._grad is not None:
+                  param._grad.data = param._grad.data.to(device)
+          elif isinstance(param, dict):
+              for subparam in param.values():
+                  if isinstance(subparam, torch.Tensor):
+                      subparam.data = subparam.data.to(device)
+                      if subparam._grad is not None:
+                          subparam._grad.data = subparam._grad.data.to(device)
 
     class CentralizedModelKey(enum.Enum):
         MODEL_DICT = "model_dict"

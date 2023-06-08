@@ -40,7 +40,7 @@ class BaseDataset(ABC, VisionDataset):
 
     @staticmethod
     @abstractmethod
-    def convert_class() -> Callable[[torch.Tensor], ArrayLike]:
+    def convert_class(class_prediction: ArrayLike) -> ArrayLike:
         pass
 
     def __getitem__(self, index: int) -> Any:
