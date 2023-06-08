@@ -62,7 +62,6 @@ class CentralizedModel(Experiment):
         labels = labels.cpu().numpy()
         prediction = prediction.cpu().numpy()
         prediction = convert_class(prediction)
-        #prediction = self.train_dataset.convert_class(prediction)
         metric.update(labels, prediction)
 
     def run_epoch(self, cur_epoch: int, optimizer: optim.Optimizer, scheduler: _LRScheduler = None):
@@ -85,10 +84,6 @@ class CentralizedModel(Experiment):
             outputs = self.model(images)
             loss = self.reduction(self.criterion(outputs['out'], labels), labels)
             loss.backward()
-
-            print(torch.cuda.memory_summary(device="cuda:0"))
-            print(torch.cuda.memory_summary(device="cpu"))
-
             optimizer.step()
 
             if scheduler is not None:
@@ -174,8 +169,23 @@ class CentralizedModel(Experiment):
         state = snapshot.get_state()
         self.model.load_state_dict(state[CentralizedModel.CentralizedModelKey.MODEL_DICT])
         self.optimizer.load_state_dict(state[CentralizedModel.CentralizedModelKey.OPTIMIZER_DICT])
+        self.optimizer_to(self.optimizer, self.device)
         self.scheduler.load_state_dict(state[CentralizedModel.CentralizedModelKey.SCHEDULER_DICT])
         return state[CentralizedModel.CentralizedModelKey.EPOCHS]
+    
+    def optimizer_to(self, optim, device):
+      for param in optim.state.values():
+          # Not sure there are any global tensors in the state dict
+          if isinstance(param, torch.Tensor):
+              param.data = param.data.to(device)
+              if param._grad is not None:
+                  param._grad.data = param._grad.data.to(device)
+          elif isinstance(param, dict):
+              for subparam in param.values():
+                  if isinstance(subparam, torch.Tensor):
+                      subparam.data = subparam.data.to(device)
+                      if subparam._grad is not None:
+                          subparam._grad.data = subparam._grad.data.to(device)
 
     class CentralizedModelKey(enum.Enum):
         MODEL_DICT = "model_dict"
