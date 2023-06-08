@@ -4,6 +4,7 @@ from argparse import Namespace
 from typing import List, Optional, Tuple
 from overrides import override
 from torch.utils.data import DataLoader
+from datasets.silo_idda import SiloIddaDataset
 from datasets.sl_idda import IDDADatasetSelfLearning
 
 import datasets.ss_transforms as sstr
@@ -125,6 +126,37 @@ class IddaDatasetSelfLearningFactory(DatasetFactory):
                                                             list_samples=all_data[client_id], 
                                                             transform=self.train_transforms,
                                                             client_name=client_id))
+        return train_datasets
+    
+    @override
+    def construct_test_dataset(self) -> List[BaseDataset]:
+        raise NotImplementedError("Test set for Idda Self Learning dataset is not implemented")
+    
+class SiloIddaDatasetFactory(DatasetFactory):
+
+    def __init__(self,
+                 framework: str,
+                 train_transforms: Optional[sstr.Compose],
+                 test_transforms: Optional[sstr.Compose]) -> None:
+        super().__init__(root="data/idda", 
+                         train_transforms=train_transforms, 
+                         test_transforms=test_transforms)
+        self.framework = framework
+    
+    @override
+    def construct_trainig_dataset(self) -> List[BaseDataset]:
+        train_datasets = []
+        match self.framework:
+            case "centralized" | "federated" | "self_learning":
+                raise NotImplementedError("NO")
+            case "silo_self_learning":
+                    with open(os.path.join(self.root, 'train.json'), 'r') as f:
+                        all_data = json.load(f)
+                        for client_id in all_data.keys():
+                                train_datasets.append(SiloIddaDataset(root=self.root, 
+                                                                      list_samples=all_data[client_id], 
+                                                                      transform=self.train_transforms,
+                                                                      client_name=client_id))
         return train_datasets
     
     @override

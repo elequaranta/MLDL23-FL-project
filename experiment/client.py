@@ -49,8 +49,9 @@ class Client:
     def update_metric(self, metric, outputs, labels):
         _, prediction = outputs.max(dim=1)
         labels = labels.cpu().numpy()
-        prediction = prediction.cpu().numpy()
-        prediction = self.dataset.convert_class(prediction)
+        prediction = prediction.cpu()
+        if not self.dataset.test_mode:
+            prediction = self.dataset.convert_class(prediction)
         metric.update(labels, prediction)
 
     def run_epoch(self, cur_epoch: int) -> torch.Tensor:

@@ -147,7 +147,7 @@ class CentralizedModel(Experiment):
                     outputs = self.model(images)
                     self.update_metric(metric, 
                                        outputs["out"], 
-                                       labels, 
+                                       labels,
                                        convert_class=self.train_dataset.convert_class)
                 results = metric.get_results()
                 self.logger.save_results(results)

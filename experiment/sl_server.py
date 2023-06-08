@@ -6,7 +6,9 @@ import math
 from typing import Dict, List
 from overrides import override
 from torch import Tensor
+import torch
 from torch.nn import Threshold
+from torch.nn.functional import softmax
 from torchvision.models.segmentation.deeplabv3 import DeepLabV3
 from tqdm import tqdm
 from torch.utils.data import DataLoader
@@ -49,13 +51,13 @@ class ServerSelfLearning(Server):
     @override
     def train(self, starting:int = 0) -> int:
         self.rounds_trained = starting
-        self.logger.watch(self.model, log="all", log_freq=10)
         n_exaple = 0
         n_rounds_between_snap = math.ceil(self.n_rounds - starting / self.N_CHECKPOINTS_RUN)
+        self.logger.watch(self.model, log="all", log_freq=10)
         for r in tqdm(range(starting, self.n_rounds)):
             clients = self.select_clients()
             self.update_client_ds(r, clients)
-            updates, losses = self.train_round(clients)    
+            updates, losses = self.train_round(clients)
             self.update_model(updates)
 
             # Online many people weights the losses value with the size of the client's datatet
@@ -92,11 +94,10 @@ class ServerSelfLearning(Server):
                     lbl = self.get_label_from_pred(out["out"])
                     labels.extend(lbl)
                 client.dataset.update_labels(labels)
-                
-                    
 
     def get_label_from_pred(self, prediction: Tensor) -> Tensor:
         values, idx_class_pred = prediction.max(dim=1)
+        values = softmax(values)
         values = self.threshold(values)
         idx_class_pred[values == -1] = -1
         return [idx_class_pred[i, :, :] for i in range(idx_class_pred.size(dim=0))]
@@ -118,13 +119,30 @@ class ServerSelfLearning(Server):
         state = snapshot.get_state()
         self.model.load_state_dict(
                     state.get(ServerSelfLearning.ServerSelfLearningStateKey.MODEL_DICT))
+        self.model.to(self.device)
         self.model_params_dict = copy.deepcopy(self.model.state_dict())
         self.teacher_model.load_state_dict( \
                     state.get(ServerSelfLearning.ServerSelfLearningStateKey.TEACHER_DICT, \
                     copy.deepcopy(self.model_params_dict)))
+        self.teacher_model.to(self.device)
         self.optimizer.load_state_dict(state.get(ServerSelfLearning.ServerSelfLearningStateKey.OPTIMIZER_DICT))
+        self.optimizer_to(self.optimizer, self.device)
         self.n_clients_round = state.get(ServerSelfLearning.ServerSelfLearningStateKey.CLIENTS_ROUND, self.n_clients_round)
         return state.get(ServerSelfLearning.ServerSelfLearningStateKey.ROUND, 0)
+
+    def optimizer_to(self, optim, device):
+      for param in optim.state.values():
+          # Not sure there are any global tensors in the state dict
+          if isinstance(param, torch.Tensor):
+              param.data = param.data.to(device)
+              if param._grad is not None:
+                  param._grad.data = param._grad.data.to(device)
+          elif isinstance(param, dict):
+              for subparam in param.values():
+                  if isinstance(subparam, torch.Tensor):
+                      subparam.data = subparam.data.to(device)
+                      if subparam._grad is not None:
+                          subparam._grad.data = subparam._grad.data.to(device)
     
     class ServerSelfLearningStateKey(enum.Enum):
         MODEL_DICT = "model_dict"

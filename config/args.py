@@ -36,11 +36,17 @@ def get_parser():
     federated_args.add_argument('--eval_interval', type=int, default=10, help='eval interval')
     federated_args.add_argument('--test_interval', type=int, default=10, help='test interval')
 
+    # Self Learning options
     self_learning_parser = subparser.add_parser("self_learning", parents=[federated_parser], add_help=False)
     self_learning_parser.add_argument('--update_teach', type=int, default=-1, help='number of rounds between teacher model\'s update')
     self_learning_parser.add_argument('--conf_threshold', type=float, default=0.5, help='confidence threshold while generating self labels')
 
-    
+    # Silo self learning options
+    silo_parser = subparser.add_parser("silo_self_learning", parents=[self_learning_parser], add_help=False)
+    silo_parser.add_argument('--alpha', type=float, default=0.3, help='hyper param for student\'s loss')
+    silo_parser.add_argument('--beta', type=float, default=0.7, help='hyper param for distillation\'s loss')
+    silo_parser.add_argument('--tau', type=int, default=2, help='temperature value for softmax')
+
     # Learning options
     learning_args = parser.add_argument_group("Options for learning")
     learning_args.add_argument('--hnm', action='store_true', default=False, help='Use hard negative mining reduction or not')

@@ -16,7 +16,7 @@ import datasets.ss_transforms as sstr
 from config.enums import DatasetOptions, ExperimentPhase, ModelOptions, OptimizerOptions, SchedulerOptions
 from config.args import get_parser
 from datasets.impl_factories import GTADatasetFactory, IddaDatasetFactory, IddaDatasetSelfLearningFactory, TransformsFactory
-from experiment.impl_factories import CentralizedFactory, FederatedFactory, FederatedSelfLearningFactory
+from experiment.impl_factories import CentralizedFactory, FederatedFactory, FederatedSelfLearningFactory, SiloLearningFactory
 from models.abs_factories import OptimizerFactory, SchedulerFactory
 from models.impl_factories import AdamFactory, \
                                   DeepLabV3MobileNetV2Factory, \
@@ -182,6 +182,16 @@ def main():
                                  optimizer_factory=optimizer_factory, 
                                  scheduler_factory=scheduler_factory,
                                  logger=logger).construct()
+            case 'silo_self_learning':
+                experiment = SiloLearningFactory(args=args, 
+                                 train_datasets=train_datasets, 
+                                 test_datasets=test_datasets, 
+                                 model=model, 
+                                 metrics=metrics, 
+                                 reduction=reduction, 
+                                 optimizer_factory=optimizer_factory, 
+                                 scheduler_factory=scheduler_factory,
+                                 logger=logger).construct()
             case _:
                 raise NotImplementedError("The framework chosen is not implemented")
 
@@ -196,7 +206,6 @@ def main():
                 experiment.train(starting)
                 snapshot = experiment.save()
                 logger.save(snapshot)
-                #if not (args.training_ds == DatasetOptions.GTA):
                 experiment.eval_train()
                 experiment.test()
             case ExperimentPhase.TRAIN:
@@ -204,7 +213,6 @@ def main():
                 snapshot = experiment.save()
                 logger.save(snapshot)
             case ExperimentPhase.TEST:
-                #if not (args.training_ds == DatasetOptions.GTA):
                 experiment.eval_train()
                 experiment.test()
             case _:
