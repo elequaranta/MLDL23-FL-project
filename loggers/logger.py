@@ -181,7 +181,8 @@ class WandbLoggerDecorator(BaseDecorator):
     @overrides
     def restore_snapshot(self, file_name: str, run_path: str) -> Optional[Snapshot]:
         file = wandb.restore(file_name, run_path, root=WandbLoggerDecorator.root)
-        return torch.load(file.name, weights_only=False)
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        return torch.load(file.name, weights_only=False, map_location=device)
 
     @overrides
     def finish(self) -> None:
