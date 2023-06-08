@@ -57,11 +57,12 @@ class CentralizedModel(Experiment):
         self.scheduler = scheduler_factory.construct()
     
     # @staticmethod
-    def update_metric(self, metric, outputs, labels):
+    def update_metric(self, metric, outputs, labels, convert_class):
         _, prediction = outputs.max(dim=1)
         labels = labels.cpu().numpy()
         prediction = prediction.cpu().numpy()
-        prediction = self.train_dataset.convert_class(prediction)
+        prediction = convert_class(prediction)
+        #prediction = self.train_dataset.convert_class(prediction)
         metric.update(labels, prediction)
 
     def run_epoch(self, cur_epoch: int, optimizer: optim.Optimizer, scheduler: _LRScheduler = None):
@@ -128,7 +129,7 @@ class CentralizedModel(Experiment):
             images = images.to(self.device, dtype=torch.float32)
             labels = labels.to(self.device, dtype=torch.long)
             outputs = self.model(images)
-            self.update_metric(metric, outputs["out"], labels)
+            self.update_metric(metric, outputs["out"], labels, convert_class=lambda x: x)
         results = metric.get_results()
         self.logger.save_results(results)
         self.logger.summary({f"source_train mIoU" : results["Mean IoU"]})
@@ -145,7 +146,10 @@ class CentralizedModel(Experiment):
                     images = images.to(self.device, dtype=torch.float32)
                     labels = labels.to(self.device, dtype=torch.long)
                     outputs = self.model(images)
-                    self.update_metric(metric, outputs["out"], labels)
+                    self.update_metric(metric, 
+                                       outputs["out"], 
+                                       labels, 
+                                       convert_class=self.train_dataset.convert_class)
                 results = metric.get_results()
                 self.logger.save_results(results)
                 self.logger.summary({f"{loader.dataset.name} mIoU" : results["Mean IoU"]})
