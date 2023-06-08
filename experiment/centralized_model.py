@@ -85,6 +85,10 @@ class CentralizedModel(Experiment):
             outputs = self.model(images)
             loss = self.reduction(self.criterion(outputs['out'], labels), labels)
             loss.backward()
+
+            print(torch.cuda.memory_summary(device="cuda:0"))
+            print(torch.cuda.memory_summary(device="cpu"))
+
             optimizer.step()
 
             if scheduler is not None:
