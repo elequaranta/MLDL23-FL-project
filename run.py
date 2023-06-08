@@ -15,7 +15,7 @@ import datasets.base_dataset as bdt
 import datasets.ss_transforms as sstr
 from config.enums import DatasetOptions, ExperimentPhase, ModelOptions, OptimizerOptions, SchedulerOptions
 from config.args import get_parser
-from datasets.impl_factories import GTADatasetFactory, IddaDatasetFactory, IddaDatasetSelfLearningFactory, TransformsFactory
+from datasets.impl_factories import GTADatasetFactory, IddaDatasetFactory, IddaDatasetSelfLearningFactory, SiloIddaDatasetFactory, TransformsFactory
 from experiment.impl_factories import CentralizedFactory, FederatedFactory, FederatedSelfLearningFactory, SiloLearningFactory
 from models.abs_factories import OptimizerFactory, SchedulerFactory
 from models.impl_factories import AdamFactory, \
@@ -66,6 +66,7 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
     training_datasets = None
     test_datasets = None
     idda_factory = IddaDatasetFactory(args.framework, train_transforms, test_transforms)
+    silo_factory = SiloIddaDatasetFactory(args.framework, train_transforms, test_transforms)
     gta_factory = GTADatasetFactory(train_transforms)
     idda_sl_factory = IddaDatasetSelfLearningFactory(args.framework, train_transforms, None)
     match args.training_ds:
@@ -86,6 +87,9 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
                 case DatasetOptions.GTA | DatasetOptions.IDDA_SELF:
                     idda_factory.set_in_test_mode()
                     test_datasets = idda_factory.construct_test_dataset()
+        case DatasetOptions.IDDA_SILO:
+            silo_factory.set_in_test_mode()
+            test_datasets = silo_factory.construct_test_dataset()
         case _:
             raise NotImplementedError("The dataset chosen for training is not implemented")
     return training_datasets, test_datasets

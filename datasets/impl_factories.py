@@ -132,16 +132,17 @@ class IddaDatasetSelfLearningFactory(DatasetFactory):
     def construct_test_dataset(self) -> List[BaseDataset]:
         raise NotImplementedError("Test set for Idda Self Learning dataset is not implemented")
     
-class SiloIddaDatasetFactory(DatasetFactory):
+class SiloIddaDatasetFactory(IddaDatasetFactory):
 
-    def __init__(self,
-                 framework: str,
-                 train_transforms: Optional[sstr.Compose],
-                 test_transforms: Optional[sstr.Compose]) -> None:
-        super().__init__(root="data/idda", 
-                         train_transforms=train_transforms, 
-                         test_transforms=test_transforms)
-        self.framework = framework
+    def __init__(self, 
+                 framework: str, 
+                 train_transforms: sstr.Compose | None, 
+                 test_transforms: sstr.Compose | None, 
+                 test_dataset: bool = False) -> None:
+        super().__init__(framework, 
+                         train_transforms, 
+                         test_transforms, 
+                         test_dataset)
     
     @override
     def construct_trainig_dataset(self) -> List[BaseDataset]:
@@ -158,10 +159,6 @@ class SiloIddaDatasetFactory(DatasetFactory):
                                                                       transform=self.train_transforms,
                                                                       client_name=client_id))
         return train_datasets
-    
-    @override
-    def construct_test_dataset(self) -> List[BaseDataset]:
-        raise NotImplementedError("Test set for Idda Self Learning dataset is not implemented")
         
 class TransformsFactory():
 

@@ -4,6 +4,7 @@ class DatasetOptions(str, enum.Enum):
     IDDA = "idda"
     GTA = "gta"
     IDDA_SELF = "idda_sl"
+    IDDA_SILO = "idda_silo"
 
 class ModelOptions(str, enum.Enum):
     DEEPLABv3_MOBILENETv2 = "deeplabv3_mobilenetv2"
