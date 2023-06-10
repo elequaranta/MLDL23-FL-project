@@ -126,7 +126,7 @@ class FederatedSelfLearningFactory(FederatedFactory):
                                                  optimizer_factory=self.optimizer_factory,
                                                  scheduler_factory=self.scheduler_factory))
         for ds in self.test_datasets:
-            clients[1].append(Client(n_epochs=self.n_epochs, 
+            clients[1].append(ClientSelfLearning(n_epochs=self.n_epochs, 
                                      batch_size=self.batch_size,
                                      reduction=self.reduction, 
                                      dataset=ds,

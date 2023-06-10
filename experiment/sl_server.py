@@ -112,15 +112,18 @@ class ServerSelfLearning(Server):
     @override
     def load_snapshot(self, snapshot: Snapshot) -> int:
         state = snapshot.get_state()
-        self.model.load_state_dict(
-                    state.get(ServerSelfLearning.ServerSelfLearningStateKey.MODEL_DICT))
+        for k, v in state.items():
+            if k.value == ServerSelfLearning.ServerSelfLearningStateKey.MODEL_DICT.value:
+                self.model.load_state_dict(state.get(k))
         self.model.to(self.device)
         self.model_params_dict = copy.deepcopy(self.model.state_dict())
         self.teacher_model.load_state_dict( \
                     state.get(ServerSelfLearning.ServerSelfLearningStateKey.TEACHER_DICT, \
                     copy.deepcopy(self.model_params_dict)))
         self.teacher_model.to(self.device)
-        self.optimizer.load_state_dict(state.get(ServerSelfLearning.ServerSelfLearningStateKey.OPTIMIZER_DICT))
+        for k, v in state.items():
+            if k.value == ServerSelfLearning.ServerSelfLearningStateKey.OPTIMIZER_DICT.value:
+                self.optimizer.load_state_dict(state.get(k))
         self.optimizer_to(self.optimizer, self.device)
         self.n_clients_round = state.get(ServerSelfLearning.ServerSelfLearningStateKey.CLIENTS_ROUND, self.n_clients_round)
         return state.get(ServerSelfLearning.ServerSelfLearningStateKey.ROUND, 0)
