@@ -116,7 +116,7 @@ class IddaDatasetSelfLearningFactory(DatasetFactory):
     def construct_trainig_dataset(self) -> List[BaseDataset]:
         train_datasets = []
         match self.framework:
-            case "centralized" | "federated":
+            case "centralized" | "federated" | "silo_self_learning":
                 raise NotImplementedError("NO")
             case "self_learning":
                     with open(os.path.join(self.root, 'train.json'), 'r') as f:
@@ -159,6 +159,33 @@ class SiloIddaDatasetFactory(IddaDatasetFactory):
                                                                       transform=self.train_transforms,
                                                                       client_name=client_id))
         return train_datasets
+    
+    @override
+    def construct_test_dataset(self) -> List[BaseDataset]:
+        test_datasets= []
+        if self.test_dataset == True:
+            with open(os.path.join(self.root, 'train.txt'), 'r') as f:
+                all_data = f.readlines()
+                test_datasets.append(SiloIddaDataset(root=self.root,
+                                        list_samples=all_data,
+                                        transform=self.test_transforms,
+                                        test_mode=True,
+                                        client_name="target_train"))
+        with open(os.path.join(self.root, 'test_same_dom.txt'), 'r') as f:
+            test_same_dom_data = f.read().splitlines()
+            test_datasets.append(SiloIddaDataset(root=self.root,
+                                        list_samples=test_same_dom_data, 
+                                        transform=self.test_transforms,
+                                        test_mode=True,
+                                        client_name='test_same_dom'))
+        with open(os.path.join(self.root, 'test_diff_dom.txt'), 'r') as f:
+            test_diff_dom_data = f.read().splitlines()
+            test_datasets.append(SiloIddaDataset(root=self.root,
+                                        list_samples=test_diff_dom_data,
+                                        transform=self.test_transforms,
+                                        test_mode=True,
+                                        client_name='test_diff_dom'))
+        return test_datasets
         
 class TransformsFactory():
 

@@ -27,3 +27,10 @@ class ClientSelfLearning(Client):
                          optimizer_factory, 
                          scheduler_factory, 
                          test_client)
+        
+    def update_metric(self, metric, outputs, labels):
+        _, prediction = outputs.max(dim=1)
+        labels = labels.cpu().numpy()
+        prediction = prediction.cpu().numpy()
+        prediction = self.dataset.convert_class(prediction)
+        metric.update(labels, prediction)

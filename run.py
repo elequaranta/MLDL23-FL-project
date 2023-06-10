@@ -76,6 +76,8 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
             training_datasets = gta_factory.construct_trainig_dataset()
         case DatasetOptions.IDDA_SELF:
             training_datasets = idda_sl_factory.construct_trainig_dataset()
+        case DatasetOptions.IDDA_SILO:
+            training_datasets = silo_factory.construct_trainig_dataset()
         case _:
             raise NotImplementedError("The dataset chosen for training is not implemented")
         

@@ -2,7 +2,7 @@ import copy
 from collections import OrderedDict
 import enum
 import math
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from overrides import override
@@ -28,7 +28,7 @@ class Server(Experiment):
                  n_rounds: int,
                  n_clients_round: int,
                  train_clients: List[Client], 
-                 test_clients: List[Client], 
+                 test_clients: List[Client],
                  model: DeepLabV3,
                  optimizer_factory: OptimizerFactory,
                  metrics: Dict[str, StreamSegMetrics],
@@ -83,7 +83,7 @@ class Server(Experiment):
 
         return updates, losses
 
-    def aggregate(self, updates: List[Tuple[int, OrderedDict]]) -> OrderedDict:
+    def aggregate(self, updates: List[Tuple[int, OrderedDict, Optional[int]]]) -> OrderedDict:
         """
         This method handles the FedAvg aggregation
         :param updates: updates received from the clients
@@ -106,7 +106,7 @@ class Server(Experiment):
                 averaged_sol_n[key] = value.to(self.device) / total_weight
         return averaged_sol_n
     
-    def update_model(self, updates: List[Tuple[int, OrderedDict]]) -> None:
+    def update_model(self, updates: List[Tuple[int, OrderedDict, Optional[int]]]) -> None:
         averaged_state_dicts = self.aggregate(updates)
         self._server_opt(averaged_state_dicts)
         self.model_params_dict = copy.deepcopy(self.model.state_dict())

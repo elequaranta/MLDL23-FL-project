@@ -8,6 +8,7 @@ from torchvision.models.segmentation.deeplabv3 import _SimpleSegmentationModel
 from config.enums import DatasetOptions
 from datasets.idda import IDDADataset
 from datasets.gta import GTADataset
+from datasets.silo_idda import SiloIddaDataset
 
 class ModelFactory(ABC):
 
@@ -18,6 +19,8 @@ class ModelFactory(ABC):
             case DatasetOptions.GTA:
                 self.dataset_class_number = GTADataset.get_classes_number()
             case DatasetOptions.IDDA_SELF:
+                self.dataset_class_number = GTADataset.get_classes_number()
+            case DatasetOptions.IDDA_SILO:
                 self.dataset_class_number = GTADataset.get_classes_number()
             case _:
                 raise NotImplementedError("The dataset requested is not implemented in ModelFactory")

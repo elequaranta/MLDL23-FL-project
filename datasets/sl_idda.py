@@ -1,11 +1,12 @@
-
-
+import numpy as np
+from numpy.typing import ArrayLike
 import copy
 from typing import List
 
 from overrides import override
 from torch import Tensor
 import torch
+from datasets.gta import GTADataset
 from datasets.idda import IDDADataset
 import datasets.ss_transforms as tr
 
@@ -34,6 +35,19 @@ class IDDADatasetSelfLearning(IDDADataset):
             return image, self.labels[index]
 
         return image, torch.Tensor([-1])
+    
+    @staticmethod
+    @override
+    def get_classes_number() -> int:
+        return 16
+ 
+    @staticmethod
+    @override
+    def convert_class(class_prediction: ArrayLike) -> ArrayLike:
+        out = -1 * np.ones(class_prediction.shape, dtype=np.uint8)
+        for id, label in GTADataset.class_map.items():
+            out[class_prediction == id] = int(label)
+        return out
     
     def update_labels(self, labels: List[Tensor]) -> None:
         # TODO: check if this deepcopy is needed

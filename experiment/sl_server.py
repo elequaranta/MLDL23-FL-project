@@ -17,6 +17,7 @@ from experiment.client import Client
 from experiment.server import Server
 from experiment.sl_client import ClientSelfLearning
 from experiment.snapshot import Snapshot, SnapshotImpl
+from federated.fed_params import FederatedServerParamenters
 from loggers.logger import BaseDecorator
 from models.abs_factories import OptimizerFactory
 from utils.stream_metrics import StreamSegMetrics
@@ -24,29 +25,25 @@ from utils.stream_metrics import StreamSegMetrics
 class ServerSelfLearning(Server):
 
     def __init__(self,
-                 n_rounds: int,
-                 n_clients_round: int,
-                 train_clients: List[ClientSelfLearning], 
-                 test_clients: List[Client], 
-                 model: DeepLabV3,
+                 fed_params: FederatedServerParamenters,
                  optimizer_factory: OptimizerFactory,
                  metrics: Dict[str, StreamSegMetrics],
                  logger: BaseDecorator,
                  n_round_teacher_model: int,
                  confidence_threshold: float
                  ) -> None:
-        super().__init__(n_rounds, 
-                         n_clients_round,
-                         train_clients, 
-                         test_clients, 
-                         model,
+        super().__init__(fed_params.n_rounds, 
+                         fed_params.n_clients_round,
+                         fed_params.training_clients, 
+                         fed_params.test_clients, 
+                         fed_params.model,
                          optimizer_factory,
                          metrics,
                          logger)
-        self.teacher_model = copy.deepcopy(model)
+        self.teacher_model = copy.deepcopy(self.model)
         self.n_round_teacher_model = n_round_teacher_model
         self.threshold = Threshold(confidence_threshold, value=-1)
-        self.update_client_ds(n_round_teacher_model, train_clients)
+        self.update_client_ds(n_round_teacher_model, self.train_clients)
 
     @override
     def train(self, starting:int = 0) -> int:
@@ -84,12 +81,10 @@ class ServerSelfLearning(Server):
         if round % self.n_round_teacher_model == 0:
             self.teacher_model.load_state_dict(self.model_params_dict)
             for client in clients:
-                # labels = [
-                #     self.get_label_from_pred(self.teacher_model(img)["out"]) 
-                #     for img, _ in client.dataset]
                 labels = []
                 dl = DataLoader(client.dataset, batch_size=5, shuffle=False)
                 for img, _ in dl:
+                    img = img.to(self.device)
                     out = self.teacher_model(img)
                     lbl = self.get_label_from_pred(out["out"])
                     labels.extend(lbl)
