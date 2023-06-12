@@ -68,7 +68,7 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
     idda_factory = IddaDatasetFactory(args.framework, train_transforms, test_transforms)
     silo_factory = SiloIddaDatasetFactory(args.framework, train_transforms, test_transforms)
     gta_factory = GTADatasetFactory(train_transforms)
-    idda_sl_factory = IddaDatasetSelfLearningFactory(args.framework, train_transforms, None)
+    idda_sl_factory = IddaDatasetSelfLearningFactory(args.framework, train_transforms, test_transforms)
     match args.training_ds:
         case DatasetOptions.IDDA:
             training_datasets = idda_factory.construct_trainig_dataset()
@@ -86,9 +86,11 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
             match args.training_ds:
                 case DatasetOptions.IDDA:
                     test_datasets = idda_factory.construct_test_dataset()
-                case DatasetOptions.GTA | DatasetOptions.IDDA_SELF:
+                case DatasetOptions.GTA:
                     idda_factory.set_in_test_mode()
                     test_datasets = idda_factory.construct_test_dataset()
+        case DatasetOptions.IDDA_SELF:
+            test_datasets = idda_sl_factory.construct_test_dataset()
         case DatasetOptions.IDDA_SILO:
             silo_factory.set_in_test_mode()
             test_datasets = silo_factory.construct_test_dataset()

@@ -33,6 +33,11 @@ class IDDADatasetSelfLearning(IDDADataset):
 
         if len(self.labels) == len(self.list_samples):
             return image, self.labels[index]
+        
+        if self.test_mode and self.target_transform is not None:
+            label = self.open_label(sample)
+            label = self.target_transform(label)
+            return image, label
 
         return image, torch.Tensor([-1])
     

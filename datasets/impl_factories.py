@@ -130,7 +130,22 @@ class IddaDatasetSelfLearningFactory(DatasetFactory):
     
     @override
     def construct_test_dataset(self) -> List[BaseDataset]:
-        raise NotImplementedError("Test set for Idda Self Learning dataset is not implemented")
+        test_datasets = []
+        with open(os.path.join(self.root, 'test_same_dom.txt'), 'r') as f:
+            test_same_dom_data = f.read().splitlines()
+            test_datasets.append(IDDADatasetSelfLearning(root=self.root,
+                                        list_samples=test_same_dom_data, 
+                                        transform=self.test_transforms,
+                                        test_mode=True,
+                                        client_name='test_same_dom'))
+        with open(os.path.join(self.root, 'test_diff_dom.txt'), 'r') as f:
+            test_diff_dom_data = f.read().splitlines()
+            test_datasets.append(IDDADatasetSelfLearning(root=self.root,
+                                        list_samples=test_diff_dom_data,
+                                        transform=self.test_transforms,
+                                        test_mode=True,
+                                        client_name='test_diff_dom'))
+        return test_datasets
     
 class SiloIddaDatasetFactory(IddaDatasetFactory):
 

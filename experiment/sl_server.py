@@ -91,8 +91,8 @@ class ServerSelfLearning(Server):
                 client.dataset.update_labels(labels)
 
     def get_label_from_pred(self, prediction: Tensor) -> Tensor:
+        prediction = softmax(prediction, dim=1)
         values, idx_class_pred = prediction.max(dim=1)
-        values = softmax(values)
         values = self.threshold(values)
         idx_class_pred[values == -1] = -1
         return [idx_class_pred[i, :, :] for i in range(idx_class_pred.size(dim=0))]
