@@ -62,6 +62,29 @@ class SiloClient(ClientSelfLearning):
         self.update_bn_mean_std()
         return num_train_samples, state_dict, loss
     
+    def run_epoch(self, cur_epoch: int) -> torch.Tensor:
+        """This method locally trains the model with the dataset of the client. 
+            It handles the training at mini-batch level.
+        Args:
+            cur_epoch (int): current epoch of training
+        Returns:
+            Tensor: loss of the epoch
+        """
+        for cur_step, (images, labels) in enumerate(self.data_loader):
+
+            images = images.to(self.device, dtype=torch.float32)
+            labels = labels.to(self.device, dtype=torch.long)
+
+            self.optimizer.zero_grad()
+
+            outputs = self.model(images)
+            loss = self.reduction(self.criterion(outputs['out'], labels, images), labels)
+            loss.backward()
+            self.optimizer.step()
+            self.scheduler.step()
+
+        return loss
+    
     def update_bn_mean_std(self):
         for k, v in self.model.state_dict().items():
             if "bn.running" in k or "bn.num_batches_tracked" in k:

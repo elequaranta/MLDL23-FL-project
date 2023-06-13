@@ -29,24 +29,21 @@ class SiloServer(ServerSelfLearning):
                  logger: BaseDecorator, 
                  self_learning_params: SelfLearningParams,
                  n_clusters: int) -> None:
-        super().__init__(fed_params.n_rounds,
-                         fed_params.n_clients_round, 
-                         fed_params.training_clients, 
-                         fed_params.test_clients, 
-                         fed_params.model,
-                         optimizer_factory, 
-                         metrics, 
-                         logger, 
-                         self_learning_params.n_round_teacher_model, 
-                         self_learning_params.confidence_threshold)
         self.n_clusters = n_clusters
         self.bn_statics = OrderedDict()
         for i in range(n_clusters):
             self.bn_statics[i] = OrderedDict()
         for i in range(n_clusters):
-            for k, v in self.model.state_dict().items():
+            for k, v in fed_params.model.state_dict().items():
                 if "bn" in k:
                     self.bn_statics[i][k] = copy.deepcopy(v)
+
+        super().__init__(fed_params=fed_params,
+                         optimizer_factory=optimizer_factory, 
+                         metrics=metrics, 
+                         logger=logger, 
+                         n_round_teacher_model=self_learning_params.n_round_teacher_model, 
+                         confidence_threshold=self_learning_params.confidence_threshold)
 
     # TODO: test
     @override
@@ -82,7 +79,7 @@ class SiloServer(ServerSelfLearning):
         bn_base = OrderedDict()
         for i in range(self.n_clusters):
             bn_base[i] = OrderedDict()
-        cluster_weight = torch.zeros(size=(self.n_clusters))
+        cluster_weight = torch.zeros(self.n_clusters)
         for (client_samples, client_model, client_cluster) in updates:
 
             total_weight += client_samples
@@ -104,10 +101,10 @@ class SiloServer(ServerSelfLearning):
             if total_weight != 0:
                 averaged_sol_n[key] = value.to(self.device) / total_weight
 
-        for cluster_id, bn_stat in bn_base:
-            for key, value in bn_stat:
-                if len(value) != 0:
-                    self.bn_statics[cluster_id][key] = value.to(self.device) / cluster_weight[cluster_id]
+        for cluster_id, bn_stat in bn_base.items():
+            for key, value in bn_stat.items():
+                #if len(value) != 0:
+                self.bn_statics[cluster_id][key] = value.to(self.device) / cluster_weight[cluster_id]
 
         return averaged_sol_n
                 
@@ -142,7 +139,7 @@ class SiloServer(ServerSelfLearning):
         # use self.model_params_dict to pass the params (it's a deep copy)
         # to not create side effect during training
         weights_biases = OrderedDict()
-        for k, v in self.bn_statics[client.cluster_id]:
+        for k, v in self.bn_statics[client.cluster_id].items():
             if "weight" in k or "bias" in k:
                 weights_biases[k] = copy.deepcopy(v)
         client.update_model(self.model_params_dict, self.bn_statics[client.cluster_id])

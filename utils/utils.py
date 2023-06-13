@@ -32,13 +32,13 @@ class DistillationLoss:
         self.alpha = alpha
         self.beta = beta
         self.tau = tau
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(dim=1)
         self.cross_entropy = nn.CrossEntropyLoss(ignore_index=-1, reduction='none')
 
-    def __call__(self, x: torch.Tensor, target: torch.Tensor, imgs) -> Any:
+    def __call__(self, x: torch.Tensor, targets: torch.Tensor, imgs) -> Any:
         teacher_logits = self.model(imgs)["out"]
         distillation_loss = self.beta * self.cross_entropy(self.softmax(x/self.tau), self.softmax(teacher_logits/self.tau))
-        student_loss = self.alpha * self.cross_entropy(target, self.softmax(x))
+        student_loss = self.alpha * self.cross_entropy(self.softmax(x), targets)
         return distillation_loss + student_loss
     
     def update_model(self, params_dict: OrderedDict):

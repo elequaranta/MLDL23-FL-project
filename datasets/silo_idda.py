@@ -20,11 +20,11 @@ class SiloIddaDataset(IDDADatasetSelfLearning):
                          transform, 
                          test_mode, 
                          client_name)
-        self.style: ArrayLike = self.get_style().numpy()
+        self._style = self.get_style().numpy()
 
     @property
     def style(self) -> ArrayLike:
-        return self.style
+        return self._style
 
     def get_style(self):
         to_tensor = ToTensor()
@@ -36,4 +36,4 @@ class SiloIddaDataset(IDDADatasetSelfLearning):
             fft_img = torch.fft.rfft2(img.clone(), dim=(-2, -1))
             amp_trg, pha_trg = FDA._extract_ampl_phase(fft_img.clone())
             amp_trg_sum = amp_trg_sum.add(amp_trg)
-        return amp_trg_sum / len(len(self.list_samples))
+        return amp_trg_sum / len(self.list_samples)

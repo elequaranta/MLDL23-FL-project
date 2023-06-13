@@ -22,6 +22,7 @@ from experiment.sl_server import ServerSelfLearning
 from federated.fed_params import FederatedServerParamenters
 from loggers.logger import BaseDecorator
 from models.abs_factories import OptimizerFactory, SchedulerFactory
+from self_learning.self_learning_params import SelfLearningParams
 from utils.stream_metrics import StreamSegMetrics
 from utils.utils import DistillationLoss
 
@@ -101,8 +102,10 @@ class FederatedSelfLearningFactory(FederatedFactory):
                          logger)
         self.n_rounds=args.num_rounds
         self.n_clients_round=args.clients_per_round
-        self.n_round_teacher_model=args.update_teach
-        self.confidence_threshold=args.conf_threshold
+
+        self.self_learning_params = SelfLearningParams(n_round_teacher_model=args.update_teach,
+                                                       confidence_threshold=args.conf_threshold)
+
     
     @override
     def construct(self) -> Experiment:
@@ -110,8 +113,8 @@ class FederatedSelfLearningFactory(FederatedFactory):
                                     metrics=self.metrics, 
                                     optimizer_factory=self.optimizer_factory,
                                     logger=self.logger,
-                                    n_round_teacher_model=self.n_round_teacher_model, 
-                                    confidence_threshold=self.confidence_threshold)
+                                    n_round_teacher_model=self.self_learning_params.n_round_teacher_model, 
+                                    confidence_threshold=self.self_learning_params.confidence_threshold)
         return server
     
     @override
@@ -148,6 +151,10 @@ class SiloLearningFactory(FederatedSelfLearningFactory):
                  optimizer_factory: OptimizerFactory, 
                  scheduler_factory: SchedulerFactory, 
                  logger: BaseDecorator) -> None:
+        self.criterion = DistillationLoss(model=model,
+                                          alpha=args.alpha,
+                                          beta=args.beta,
+                                          tau=args.tau)
         super().__init__(args, 
                          train_datasets, 
                          test_datasets, 
@@ -157,10 +164,6 @@ class SiloLearningFactory(FederatedSelfLearningFactory):
                          optimizer_factory, 
                          scheduler_factory, 
                          logger)
-        self.criterion = DistillationLoss(model=model,
-                                          alpha=args.alpha,
-                                          beta=args.beta,
-                                          tau=args.tau)
 
     @override
     def construct(self) -> Experiment:
@@ -168,8 +171,8 @@ class SiloLearningFactory(FederatedSelfLearningFactory):
                             metrics=self.metrics, 
                             optimizer_factory=self.optimizer_factory,
                             logger=self.logger,
-                            n_round_teacher_model=self.n_round_teacher_model, 
-                            confidence_threshold=self.confidence_threshold)
+                            self_learning_params=self.self_learning_params,
+                            n_clusters=5)
         return server
 
     #TODO: test
