@@ -124,7 +124,7 @@ def get_scheduler_factory(args: Namespace, len_train_dataset: int, optimizer: Op
     print('Generating Scheduler... \U0001F975')
     match args.lr_policy:
         case SchedulerOptions.POLY:
-            max_iter = math.floor(args.num_epochs * (len_train_dataset / args.bs))
+            max_iter = math.floor(10 + args.num_epochs * (len_train_dataset / args.bs))
             return LambdaSchedulerFactory(args.lr_power, optimizer, max_iter)
         case SchedulerOptions.STEP:
             return StepLRSchedulerFactory(args.lr_decay_step, args.lr_decay_factor, optimizer)
