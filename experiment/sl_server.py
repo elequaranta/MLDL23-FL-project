@@ -95,7 +95,7 @@ class ServerSelfLearning(Server):
         values, idx_class_pred = prediction.max(dim=1)
         values_copy = values
         values = self.threshold(values)
-        if torch.rand(1) > 0.99:
+        if torch.rand(1) > 0.70:
             conf_max = values_copy.amax(dim=(1,2))
             conf_min = values_copy.amin(dim=(1,2))
             conf_mean = values_copy.sum(dim=(1,2)).div(values_copy.size(dim=1) * values_copy.size(dim=2))
