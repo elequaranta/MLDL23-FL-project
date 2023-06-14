@@ -93,7 +93,13 @@ class ServerSelfLearning(Server):
     def get_label_from_pred(self, prediction: Tensor) -> Tensor:
         prediction = softmax(prediction, dim=1)
         values, idx_class_pred = prediction.max(dim=1)
+        values_copy = values
         values = self.threshold(values)
+        if torch.rand(1) > 0.99:
+            conf_max = values_copy.amax(dim=(1,2))
+            conf_min = values_copy.amin(dim=(1,2))
+            conf_mean = values_copy.sum(dim=(1,2)).div(values_copy.size(dim=1) * values_copy.size(dim=2))
+            print(f"Confidence for label pred: \n conf_max: {conf_max} \n conf_min: {conf_min} \n conf_mean: {conf_mean}")
         idx_class_pred[values == -1] = -1
         return [idx_class_pred[i, :, :] for i in range(idx_class_pred.size(dim=0))]
 
