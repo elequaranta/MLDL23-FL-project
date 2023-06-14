@@ -67,6 +67,8 @@ class SiloServer(ServerSelfLearning):
             update = self._compute_client_delta(state_dict)
             updates.append((num_samples, update, c.cluster_id))
 
+        self.rounds_trained += 1
+
         return updates, losses
         
 
