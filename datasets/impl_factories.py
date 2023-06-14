@@ -165,7 +165,7 @@ class SiloIddaDatasetFactory(IddaDatasetFactory):
         match self.framework:
             case "centralized" | "federated" | "self_learning":
                 raise NotImplementedError("NO")
-            case "silo_self_learning":
+            case "silo_self_learning" | "basic_silo":
                     with open(os.path.join(self.root, 'train.json'), 'r') as f:
                         all_data = json.load(f)
                         for client_id in all_data.keys():

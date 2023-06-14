@@ -10,6 +10,7 @@ from torchvision.models.segmentation.deeplabv3 import _SimpleSegmentationModel
 from torch.utils.data import DataLoader
 from datasets.base_dataset import BaseDataset
 from datasets.silo_idda import SiloIddaDataset
+from experiment.basic_silo_client import BasicSiloClient
 
 from experiment.centralized_model import CentralizedModel
 from experiment.abs_factories import Experiment, ExperimentFactory
@@ -212,6 +213,69 @@ class SiloLearningFactory(FederatedSelfLearningFactory):
         if is_fit:
             return kmeans.fit_predict(features)
         return kmeans.predict(features)
+    
+class BasicSiloLearningFactory(FederatedSelfLearningFactory):
+
+    def __init__(self, 
+                 args: Namespace, 
+                 train_datasets: List[VisionDataset], 
+                 test_datasets: List[VisionDataset], 
+                 model: _SimpleSegmentationModel, 
+                 metrics: Dict[str, StreamSegMetrics], 
+                 reduction: Callable[[Any], Any], 
+                 optimizer_factory: OptimizerFactory, 
+                 scheduler_factory: SchedulerFactory, 
+                 logger: BaseDecorator) -> None:
+        self.criterion = DistillationLoss(model=model,
+                                          alpha=args.alpha,
+                                          beta=args.beta,
+                                          tau=args.tau)
+        super().__init__(args, 
+                         train_datasets, 
+                         test_datasets, 
+                         model, 
+                         metrics, 
+                         reduction, 
+                         optimizer_factory, 
+                         scheduler_factory, 
+                         logger)
+
+    @override
+    def construct(self) -> Experiment:
+        server = SiloServer(fed_params=self.fed_params,
+                            metrics=self.metrics, 
+                            optimizer_factory=self.optimizer_factory,
+                            logger=self.logger,
+                            self_learning_params=self.self_learning_params,
+                            n_clusters=1)
+        return server
+
+    #TODO: test
+    @override
+    def _gen_clients(self) -> Tuple[List[SiloClient], List[Client]]:
+        clients = [[], []]
+        for ds in self.train_datasets:
+            clients[0].append(BasicSiloClient(n_epochs=self.n_epochs, 
+                                         batch_size=self.batch_size,
+                                         reduction=self.reduction, 
+                                         dataset=ds,
+                                         model=self.model,
+                                         optimizer_factory=self.optimizer_factory,
+                                         scheduler_factory=self.scheduler_factory,
+                                         cluster_id=0,
+                                         criterion=self.criterion))
+        for ds in self.test_datasets:
+            clients[1].append(SiloClient(n_epochs=self.n_epochs, 
+                                     batch_size=self.batch_size,
+                                     reduction=self.reduction, 
+                                     dataset=ds,
+                                     model=self.model,
+                                     optimizer_factory=self.optimizer_factory,
+                                     scheduler_factory=self.scheduler_factory,
+                                     cluster_id=0,
+                                     test_client=True,
+                                     criterion=self.criterion))
+        return clients[0], clients[1]
     
 class CentralizedFactory(ExperimentFactory):
 

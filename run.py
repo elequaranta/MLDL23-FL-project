@@ -16,7 +16,7 @@ import datasets.ss_transforms as sstr
 from config.enums import DatasetOptions, ExperimentPhase, ModelOptions, OptimizerOptions, SchedulerOptions
 from config.args import get_parser
 from datasets.impl_factories import GTADatasetFactory, IddaDatasetFactory, IddaDatasetSelfLearningFactory, SiloIddaDatasetFactory, TransformsFactory
-from experiment.impl_factories import CentralizedFactory, FederatedFactory, FederatedSelfLearningFactory, SiloLearningFactory
+from experiment.impl_factories import BasicSiloLearningFactory, CentralizedFactory, FederatedFactory, FederatedSelfLearningFactory, SiloLearningFactory
 from models.abs_factories import OptimizerFactory, SchedulerFactory
 from models.impl_factories import AdamFactory, \
                                   DeepLabV3MobileNetV2Factory, \
@@ -192,6 +192,17 @@ def main():
                                  logger=logger).construct()
             case 'silo_self_learning':
                 experiment = SiloLearningFactory(args=args, 
+                                 train_datasets=train_datasets, 
+                                 test_datasets=test_datasets, 
+                                 model=model, 
+                                 metrics=metrics, 
+                                 reduction=reduction, 
+                                 optimizer_factory=optimizer_factory, 
+                                 scheduler_factory=scheduler_factory,
+                                 logger=logger).construct()
+                
+            case 'basic_silo':
+                experiment = BasicSiloLearningFactory(args=args, 
                                  train_datasets=train_datasets, 
                                  test_datasets=test_datasets, 
                                  model=model, 

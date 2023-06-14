@@ -23,6 +23,7 @@ class ProjectNameOptions(str, enum.Enum):
     FDA = "fda-training"
     SL = "self-learning"
     SILO = "silo-self-learning"
+    BASIC_SILO = "basic-silo-self-learning"
     DEBUG = "debug"
 
 class NormOptions(str, enum.Enum):

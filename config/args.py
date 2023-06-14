@@ -47,6 +47,8 @@ def get_parser():
     silo_parser.add_argument('--beta', type=float, default=0.7, help='hyper param for distillation\'s loss')
     silo_parser.add_argument('--tau', type=int, default=2, help='temperature value for softmax')
 
+    basic_silo_parser = subparser.add_parser("basic_silo", parents=[silo_parser], add_help=False)
+
     # Learning options
     learning_args = parser.add_argument_group("Options for learning")
     learning_args.add_argument('--hnm', action='store_true', default=False, help='Use hard negative mining reduction or not')
