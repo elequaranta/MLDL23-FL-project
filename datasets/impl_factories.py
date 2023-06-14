@@ -106,11 +106,13 @@ class IddaDatasetSelfLearningFactory(DatasetFactory):
     def __init__(self,
                  framework: str,
                  train_transforms: Optional[sstr.Compose],
-                 test_transforms: Optional[sstr.Compose]) -> None:
+                 test_transforms: Optional[sstr.Compose],
+                 test_dataset: bool = False) -> None:
         super().__init__(root="data/idda", 
                          train_transforms=train_transforms, 
                          test_transforms=test_transforms)
         self.framework = framework
+        self.test_dataset = test_dataset
     
     @override
     def construct_trainig_dataset(self) -> List[BaseDataset]:
@@ -131,6 +133,14 @@ class IddaDatasetSelfLearningFactory(DatasetFactory):
     @override
     def construct_test_dataset(self) -> List[BaseDataset]:
         test_datasets = []
+        if self.test_dataset == True:
+            with open(os.path.join(self.root, 'train.txt'), 'r') as f:
+                all_data = f.readlines()
+                test_datasets.append(IDDADatasetSelfLearning(root=self.root,
+                                        list_samples=all_data,
+                                        transform=self.test_transforms,
+                                        test_mode=True,
+                                        client_name="target_train"))
         with open(os.path.join(self.root, 'test_same_dom.txt'), 'r') as f:
             test_same_dom_data = f.read().splitlines()
             test_datasets.append(IDDADatasetSelfLearning(root=self.root,
@@ -146,6 +156,9 @@ class IddaDatasetSelfLearningFactory(DatasetFactory):
                                         test_mode=True,
                                         client_name='test_diff_dom'))
         return test_datasets
+    
+    def set_in_test_mode(self) -> None:
+        self.test_dataset = True
     
 class SiloIddaDatasetFactory(IddaDatasetFactory):
 

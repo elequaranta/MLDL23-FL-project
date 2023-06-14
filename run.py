@@ -90,6 +90,7 @@ def get_datasets(args: Namespace, train_transforms: sstr.Compose, test_transform
                     idda_factory.set_in_test_mode()
                     test_datasets = idda_factory.construct_test_dataset()
         case DatasetOptions.IDDA_SELF:
+            idda_sl_factory.set_in_test_mode()
             test_datasets = idda_sl_factory.construct_test_dataset()
         case DatasetOptions.IDDA_SILO:
             silo_factory.set_in_test_mode()
