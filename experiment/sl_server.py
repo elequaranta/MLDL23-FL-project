@@ -127,6 +127,7 @@ class ServerSelfLearning(Server):
                     state.get(ServerSelfLearning.ServerSelfLearningStateKey.TEACHER_DICT, \
                     copy.deepcopy(self.model_params_dict)))
         self.teacher_model.to(self.device)
+        self.update_client_ds(self.n_round_teacher_model, self.train_clients)
         for k, v in state.items():
             if k.value == ServerSelfLearning.ServerSelfLearningStateKey.OPTIMIZER_DICT.value:
                 self.optimizer.load_state_dict(state.get(k))
