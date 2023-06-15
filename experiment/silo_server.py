@@ -171,6 +171,7 @@ class SiloServer(ServerSelfLearning):
                     state.get(SiloServer.SiloServerStateKey.TEACHER_DICT, \
                     copy.deepcopy(self.model_params_dict)))
         self.teacher_model.to(self.device)
+        self.update_client_ds(self.n_round_teacher_model, self.train_clients)
         for client in itertools.chain(self.train_clients, self.test_clients):
             client.criterion.update_model(copy.deepcopy(self.model_params_dict))
         for k, v in state.items():
