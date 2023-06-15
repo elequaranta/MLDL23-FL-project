@@ -80,27 +80,49 @@ class ServerSelfLearning(Server):
             return
         if round % self.n_round_teacher_model == 0:
             self.teacher_model.load_state_dict(self.model_params_dict)
+            step = 0
             for client in clients:
                 labels = []
                 dl = DataLoader(client.dataset, batch_size=5, shuffle=False)
                 for img, _ in dl:
                     img = img.to(self.device)
                     out = self.teacher_model(img)
-                    lbl = self.get_label_from_pred(out["out"])
+                    step += img.size()[0]
+                    lbl = self.get_label_from_pred(out["out"], step)
                     labels.extend(lbl)
                 client.dataset.update_labels(labels)
 
-    def get_label_from_pred(self, prediction: Tensor) -> Tensor:
+    def get_label_from_pred(self, prediction: Tensor, step) -> Tensor:
         prediction = softmax(prediction, dim=1)
         values, idx_class_pred = prediction.max(dim=1)
         values_copy = values
         values = self.threshold(values)
-        if torch.rand(1) > 0.70:
-            conf_max = values_copy.amax(dim=(1,2))
-            conf_min = values_copy.amin(dim=(1,2))
-            conf_mean = values_copy.sum(dim=(1,2)).div(values_copy.size(dim=1) * values_copy.size(dim=2))
+        conf_max = values_copy.amax(dim=(1,2))
+        conf_min = values_copy.amin(dim=(1,2))
+        conf_mean = values_copy.sum(dim=(1,2)).div(values_copy.size(dim=1) * values_copy.size(dim=2))
+        for ma, mi, me in zip(conf_max, conf_min, conf_mean):
+            self.logger.log(data={"max-conf":ma, "min-conf":mi, "mean-conf":me}, step=step)
         idx_class_pred[values == -1] = -1
         return [idx_class_pred[i, :, :] for i in range(idx_class_pred.size(dim=0))]
+    
+    @override
+    def test(self):
+        """
+            This method handles the test on the test clients
+        """
+        for client in self.test_clients:
+            metric = self.client_metrics[client.name]
+            metric.reset()
+            self.aggregated_metrics[client.name]
+            client.test(metric)
+            self.aggregated_metrics[client.name].update(metric, client.name)
+        test_metrics_keys = filter(lambda key: "test" in key or "target" in key, self.aggregated_metrics.keys())
+        for metric_key in test_metrics_keys:
+            test_metric = self.aggregated_metrics[metric_key]
+            result = test_metric.calculate_results()
+            self.logger.save_results(result)
+            self.logger.summary({metric_key: result})
+            print(test_metric)
 
     @override
     def save(self) -> Snapshot:
