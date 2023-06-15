@@ -119,6 +119,7 @@ class SiloServer(ServerSelfLearning):
         if round % self.n_round_teacher_model == 0:
             self.teacher_model.load_state_dict(self.model_params_dict)
             for i in range(self.n_clusters):
+                step = 0
                 for client in clients:
                     if client.cluster_id == i:
                         self.teacher_model.load_state_dict(self.bn_statics[i], strict=False)
@@ -127,7 +128,8 @@ class SiloServer(ServerSelfLearning):
                         for img, _ in dl:
                             img = img.to(self.device)
                             out = self.teacher_model(img)
-                            lbl = self.get_label_from_pred(out["out"])
+                            step += img.size()[0]
+                            lbl = self.get_label_from_pred(out["out"], step)
                             labels.extend(lbl)
                         client.dataset.update_labels(labels)
 
