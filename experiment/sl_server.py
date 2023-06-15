@@ -99,7 +99,6 @@ class ServerSelfLearning(Server):
             conf_max = values_copy.amax(dim=(1,2))
             conf_min = values_copy.amin(dim=(1,2))
             conf_mean = values_copy.sum(dim=(1,2)).div(values_copy.size(dim=1) * values_copy.size(dim=2))
-            print(f"Confidence for label pred: \n conf_max: {conf_max} \n conf_min: {conf_min} \n conf_mean: {conf_mean}")
         idx_class_pred[values == -1] = -1
         return [idx_class_pred[i, :, :] for i in range(idx_class_pred.size(dim=0))]
 
