@@ -101,7 +101,7 @@ class ServerSelfLearning(Server):
         conf_min = values_copy.amin(dim=(1,2))
         conf_mean = values_copy.sum(dim=(1,2)).div(values_copy.size(dim=1) * values_copy.size(dim=2))
         for ma, mi, me in zip(conf_max, conf_min, conf_mean):
-            self.logger.log(data={"max-conf":ma, "min-conf":mi, "mean-conf":me}, step=step)
+            self.logger.log(data={"max-conf":ma, "min-conf":mi, "mean-conf":me, "step": step})
         idx_class_pred[values == -1] = -1
         return [idx_class_pred[i, :, :] for i in range(idx_class_pred.size(dim=0))]
     
