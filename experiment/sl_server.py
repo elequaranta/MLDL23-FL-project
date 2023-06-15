@@ -87,8 +87,8 @@ class ServerSelfLearning(Server):
                 for img, _ in dl:
                     img = img.to(self.device)
                     out = self.teacher_model(img)
-                    step += img.size()[0]
                     lbl = self.get_label_from_pred(out["out"], step)
+                    step += img.size()[0]
                     labels.extend(lbl)
                 client.dataset.update_labels(labels)
 
@@ -102,6 +102,7 @@ class ServerSelfLearning(Server):
         conf_mean = values_copy.sum(dim=(1,2)).div(values_copy.size(dim=1) * values_copy.size(dim=2))
         for ma, mi, me in zip(conf_max, conf_min, conf_mean):
             self.logger.log(data={"max-conf":ma, "min-conf":mi, "mean-conf":me, "step": step})
+            step += 1
         idx_class_pred[values == -1] = -1
         return [idx_class_pred[i, :, :] for i in range(idx_class_pred.size(dim=0))]
     

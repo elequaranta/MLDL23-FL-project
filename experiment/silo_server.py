@@ -128,8 +128,8 @@ class SiloServer(ServerSelfLearning):
                         for img, _ in dl:
                             img = img.to(self.device)
                             out = self.teacher_model(img)
-                            step += img.size()[0]
                             lbl = self.get_label_from_pred(out["out"], step)
+                            step += img.size()[0]
                             labels.extend(lbl)
                         client.dataset.update_labels(labels)
 
