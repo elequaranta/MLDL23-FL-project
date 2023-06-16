@@ -29,7 +29,7 @@ The ```run.py``` orchestrates everything. All arguments need to be specified thr
 Example of experiment:
 ```bash
 python run.py
-  --project federated-training 
+  --project exam-project 
   --exp_name big-round 
   --seed 0 
   --training_ds idda
@@ -60,8 +60,16 @@ python run.py
 ```
 
 ## How to test best ClAvBN and SiloBN model
-1. **ClAvBN**: run the file ```clavbn.sh```
-1. **SiloBN**: run the file ```silobn.sh```
+- **ClAvBN**: 
+   1. follow step 2 and 3 from the Environment section
+   2. import the file ```clavbn.sh``` in Google Colab
+   3. run the command ```!chmod +x clavbn.sh``` in a code cell
+   4. run the command ```!./clavbn.sh```
+- **SiloBN**:
+   1. follow step 2 and 3 from the Environment section
+   2. import the file ```silobn.sh``` in Google Colab
+   3. run the command ```!chmod +x silobn.sh``` in a code cell
+   4. run the command ```!./silobn.sh```
 
 ## References
 [1] Fantauzzo, Lidia, et al. "FedDrive: generalizing federated learning to semantic segmentation in autonomous driving." 2022 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS). IEEE, 2022.
