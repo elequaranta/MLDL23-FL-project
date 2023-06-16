@@ -25,6 +25,7 @@ class ProjectNameOptions(str, enum.Enum):
     SILO = "silo-self-learning"
     BASIC_SILO = "basic-silo-self-learning"
     DEBUG = "debug"
+    EXAM = "exam-project"
 
 class NormOptions(str, enum.Enum):
     EROS = "eros_norm"
