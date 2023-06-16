@@ -5,11 +5,6 @@ Code for the Federated Learning project.
 
 ## Setup
 #### Environment
-If not working on CoLab, install environment with conda (preferred): 
-```bash 
-conda env create -f mldl23fl.yml
-```
-
 The project is designed to run on google colab, run it be sure to follow this steps:
 1. Install required packages:
    ```
