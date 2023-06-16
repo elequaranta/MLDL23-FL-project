@@ -1,7 +1,19 @@
+git clone https://github.com/SamueleVanini/MLDL23-FL-project.git
+
+# Import packages needed in colab
+pip install wandb
+pip install overrides
+
+# Login in wandb
+wandb login dfb691367550ee2d3f2c3a4f4849e10d065188fb
+
+# Move in the correct folder
+cd MLDL23-FL-project 
+
 python run.py \
-  --project basic-silo-self-learning \
+  --project exam-project \
   --exp_name no_fda_basic_silo_up_10_cl_4 \
-  --load_checkpoint centr-trained-100.torch mldlproject/fda-training/w0iq2zee \
+  --load_checkpoint fed-server-silo-self-learning-100.torch mldlproject/basic-silo-self-learning/089yp65x \
   --seed 0 \
   --training_ds idda_silo \
   --test_ds idda_silo \
@@ -22,7 +34,7 @@ python run.py \
   --h_resize 512 \
   --w_resize 928 \
   --norm eros_norm \
-  --phase all \
+  --phase test \
   basic_silo \
   --num_rounds 100 \
   --clients_per_round 4 \
