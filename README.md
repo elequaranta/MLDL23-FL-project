@@ -5,7 +5,7 @@ Code for the Federated Learning project.
 
 ## Setup
 #### Environment
-The project is designed to run on google colab, run it be sure to follow this steps:
+The project is designed to run on google colab, to run it be sure to follow this steps:
 1. Install required packages:
    ```
    pip install wandb
@@ -13,7 +13,7 @@ The project is designed to run on google colab, run it be sure to follow this st
    ```
 2. Add Idda dataset in ```data/idda```
 3. Add GTA dataset in ```data/gta```
-4. If wandb must be used to save metrics and models login using the command ```wandb login``` (otherwise add the argument ```--not_use_wandb``` on the run)
+4. If wandb must be used to save metrics and models, login using the command ```wandb login``` (otherwise add the argument ```--not_use_wandb``` in run.py)
 
 #### Datasets
 The repository supports experiments on the following datasets: 
