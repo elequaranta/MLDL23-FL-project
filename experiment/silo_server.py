@@ -70,12 +70,10 @@ class SiloServer(ServerSelfLearning):
         self.rounds_trained += 1
 
         return updates, losses
-        
 
-    # TODO: test is it's correct    
+
     @override
     def aggregate(self, updates: List[Tuple[int, OrderedDict, Optional[int]]]) -> OrderedDict:
-
         total_weight = 0.
         base = OrderedDict()
         bn_base = OrderedDict()
@@ -83,7 +81,6 @@ class SiloServer(ServerSelfLearning):
             bn_base[i] = OrderedDict()
         cluster_weight = torch.zeros(self.n_clusters)
         for (client_samples, client_model, client_cluster) in updates:
-
             total_weight += client_samples
             for key, value in client_model.items():
                 if "bn" not in key:
@@ -105,14 +102,11 @@ class SiloServer(ServerSelfLearning):
 
         for cluster_id, bn_stat in bn_base.items():
             for key, value in bn_stat.items():
-                #if len(value) != 0:
                 self.bn_statics[cluster_id][key] = value.to(self.device) / cluster_weight[cluster_id]
 
         return averaged_sol_n
                 
 
-
-    # TODO: test
     def update_client_ds(self, round: int, clients: List[SiloClient]) -> None:
         if self.n_round_teacher_model == -1:
             return

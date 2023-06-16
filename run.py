@@ -233,7 +233,8 @@ def main():
                 snapshot = experiment.save()
                 logger.save(snapshot)
             case ExperimentPhase.TEST:
-                experiment.eval_train()
+                if args.framework != "silo_self_learning" and args.framework != "basic_silo":
+                    experiment.eval_train()
                 experiment.test()
             case _:
                 raise NotImplementedError("The phase chosen is not implemented")
